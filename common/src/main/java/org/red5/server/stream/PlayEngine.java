@@ -316,11 +316,14 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     }
     // Play type determination
     // https://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/net/NetStream.html#play()
-    // The start time, in seconds. Allowed values are -2, -1, 0, or a positive number.
-    // The default value is -2, which looks for a live stream, then a recorded stream,
+    // The start time, in seconds. Allowed values are -2, -1, 0, or a positive
+    // number.
+    // The default value is -2, which looks for a live stream, then a recorded
+    // stream,
     // and if it finds neither, opens a live stream.
     // If -1, plays only a live stream.
-    // If 0 or a positive number, plays a recorded stream, beginning start seconds in.
+    // If 0 or a positive number, plays a recorded stream, beginning start seconds
+    // in.
     //
     // -2: live then recorded, -1: live, >=0: recorded
     int type = (int) (item.getStart() / 1000);
@@ -329,29 +332,29 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     IScope thisScope = subscriberStream.getScope();
     final String itemName = item.getName();
     // check for input and type
-    IProviderService.INPUT_TYPE sourceType =
+    IProviderService.InputType sourceType =
         providerService.lookupProviderInput(thisScope, itemName, type);
     boolean sendNotifications = true;
     // decision: 0 for Live, 1 for File, 2 for Wait, 3 for N/A
     switch (type) {
       case -2:
-        if (sourceType == IProviderService.INPUT_TYPE.LIVE) {
+        if (sourceType == IProviderService.InputType.LIVE) {
           playDecision = 0;
-        } else if (sourceType == IProviderService.INPUT_TYPE.VOD) {
+        } else if (sourceType == IProviderService.InputType.VOD) {
           playDecision = 1;
-        } else if (sourceType == IProviderService.INPUT_TYPE.LIVE_WAIT) {
+        } else if (sourceType == IProviderService.InputType.LIVE_WAIT) {
           playDecision = 2;
         }
         break;
       case -1:
-        if (sourceType == IProviderService.INPUT_TYPE.LIVE) {
+        if (sourceType == IProviderService.InputType.LIVE) {
           playDecision = 0;
-        } else if (sourceType == IProviderService.INPUT_TYPE.LIVE_WAIT) {
+        } else if (sourceType == IProviderService.InputType.LIVE_WAIT) {
           playDecision = 2;
         }
         break;
       default:
-        if (sourceType == IProviderService.INPUT_TYPE.VOD) {
+        if (sourceType == IProviderService.InputType.VOD) {
           playDecision = 1;
         }
         break;
@@ -591,7 +594,8 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
       releasePendingMessage();
     }
     sendVODInitCM(currentItem.get());
-    // Don't use pullAndPush to detect IOExceptions prior to sending NetStream.Play.Start
+    // Don't use pullAndPush to detect IOExceptions prior to sending
+    // NetStream.Play.Start
     int start = (int) currentItem.get().getStart();
     if (start > 0) {
       streamOffset = sendVODSeekCM(start);
@@ -1432,8 +1436,10 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
           return;
         }
         if (body instanceof VideoData && body.getSourceType() == Constants.SOURCE_TYPE_LIVE) {
-          // We only want to drop packets from a live stream. VOD streams we let it buffer.
-          // We don't want a user watching a movie to see a choppy video due to low bandwidth.
+          // We only want to drop packets from a live stream. VOD streams we let it
+          // buffer.
+          // We don't want a user watching a movie to see a choppy video due to low
+          // bandwidth.
           if (msgIn instanceof IBroadcastScope) {
             IBroadcastStream stream =
                 (IBroadcastStream) ((IBroadcastScope) msgIn).getClientBroadcastStream();
@@ -1455,12 +1461,16 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
                   }
                   return;
                 }
-                // Implement some sort of back-pressure on video streams. When the client is on a
+                // Implement some sort of back-pressure on video streams. When the client is on
+                // a
                 // congested
-                // connection, Red5 cannot send packets fast enough. Mina puts these packets into an
-                // unbounded queue. If we generate video packets fast enough, the queue would get
+                // connection, Red5 cannot send packets fast enough. Mina puts these packets
+                // into an
+                // unbounded queue. If we generate video packets fast enough, the queue would
+                // get
                 // large
-                // which may trigger an OutOfMemory exception. To mitigate this, we check the size
+                // which may trigger an OutOfMemory exception. To mitigate this, we check the
+                // size
                 // of
                 // pending video messages and drop video packets until the queue is below the
                 // threshold.
@@ -1831,7 +1841,8 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
       }
       if (!messageSent && subscriberStream.getState() == StreamState.PLAYING) {
         boolean isRTMPTPlayback = subscriberStream.getConnection().getProtocol().equals("rtmpt");
-        // send all frames from last keyframe up to requested position and fill client buffer
+        // send all frames from last keyframe up to requested position and fill client
+        // buffer
         if (sendCheckVideoCM()) {
           final long clientBuffer = subscriberStream.getClientBufferDuration();
           IMessage msg = null;

@@ -16,7 +16,7 @@ import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.util.io.Streams;
 
 /** Some helper functions for the TLS API. */
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({ "rawtypes", "unchecked" })
 public class TlsUtils {
 
   @SuppressWarnings("unused")
@@ -625,12 +625,15 @@ public class TlsUtils {
   }
 
   /**
-   * @deprecated Will be removed. Use readASN1Object in combination with requireDEREncoding instead
+   * @deprecated Will be removed. Use readASN1Object in combination with
+   *             requireDEREncoding instead
    */
   public static ASN1Primitive readDERObject(byte[] encoding) throws IOException {
     /*
-     * NOTE: The current ASN.1 parsing code can't enforce DER-only parsing, but since DER is
-     * canonical, we can check it by re-encoding the result and comparing to the original.
+     * NOTE: The current ASN.1 parsing code can't enforce DER-only parsing, but
+     * since DER is
+     * canonical, we can check it by re-encoding the result and comparing to the
+     * original.
      */
     ASN1Primitive result = readASN1Object(encoding);
     requireDEREncoding(result, encoding);
@@ -639,8 +642,10 @@ public class TlsUtils {
 
   public static void requireDEREncoding(ASN1Object asn1, byte[] encoding) throws IOException {
     /*
-     * NOTE: The current ASN.1 parsing code can't enforce DER-only parsing, but since DER is
-     * canonical, we can check it by re-encoding the result and comparing to the original.
+     * NOTE: The current ASN.1 parsing code can't enforce DER-only parsing, but
+     * since DER is
+     * canonical, we can check it by re-encoding the result and comparing to the
+     * original.
      */
     byte[] check = asn1.getEncoded(ASN1Encoding.DER);
     if (!Arrays.areEqual(check, encoding)) {

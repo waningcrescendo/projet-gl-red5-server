@@ -19,30 +19,32 @@ public interface IProviderService extends IScopeService {
 
   public static final String BEAN_NAME = "providerService";
 
-  enum INPUT_TYPE {
-    NOT_FOUND,
-    LIVE,
-    LIVE_WAIT,
-    VOD;
+  enum InputType {
+    NOT_FOUND, LIVE, LIVE_WAIT, VOD;
   };
 
   /**
-   * Returns the input type for a named provider if a source of input exists. Live is checked first
-   * and VOD second. If the VOD file is not located, a LIVE_WAIT is returned if legacy live-wait
-   * support is enabled.
+   * Returns the input type for a named provider if a source of input exists. Live
+   * is checked first and VOD second. If the VOD
+   * file is not located, a LIVE_WAIT is returned if legacy live-wait support is
+   * enabled.
    *
-   * @param scope Scope of provider
-   * @param name Name of provider
-   * @param type Type of video stream
+   * @param scope
+   *              Scope of provider
+   * @param name
+   *              Name of provider
+   * @param type
+   *              Type of video stream
    * @return LIVE if live, VOD if VOD, and LIVE_WAIT otherwise
    */
-  INPUT_TYPE lookupProviderInput(IScope scope, String name, int type);
+  InputType lookupProviderInput(IScope scope, String name, int type);
 
   /**
-   * Get a named provider as the source of input. Live stream first, VOD stream second.
+   * Get a named provider as the source of input. Live stream first, VOD stream
+   * second.
    *
    * @param scope Scope of provider
-   * @param name Name of provider
+   * @param name  Name of provider
    * @return null if nothing found.
    */
   IMessageInput getProviderInput(IScope scope, String name);
@@ -50,10 +52,11 @@ public interface IProviderService extends IScopeService {
   /**
    * Get a named Live provider as the source of input.
    *
-   * @param scope Scope of provider
-   * @param name Name of provider
-   * @param needCreate Whether there's need to create basic scope / live provider if they don't
-   *     exist
+   * @param scope      Scope of provider
+   * @param name       Name of provider
+   * @param needCreate Whether there's need to create basic scope / live provider
+   *                   if they don't
+   *                   exist
    * @return null if not found.
    */
   IMessageInput getLiveProviderInput(IScope scope, String name, boolean needCreate);
@@ -62,7 +65,7 @@ public interface IProviderService extends IScopeService {
    * Get a named VOD provider as the source of input.
    *
    * @param scope Scope of provider
-   * @param name Name of provider
+   * @param name  Name of provider
    * @return null if not found.
    */
   IMessageInput getVODProviderInput(IScope scope, String name);
@@ -71,7 +74,7 @@ public interface IProviderService extends IScopeService {
    * Get a named VOD source file.
    *
    * @param scope Scope of provider
-   * @param name Name of provider
+   * @param name  Name of provider
    * @return null if not found.
    */
   File getVODProviderFile(IScope scope, String name);
@@ -79,8 +82,8 @@ public interface IProviderService extends IScopeService {
   /**
    * Register a broadcast stream to a scope.
    *
-   * @param scope Scope
-   * @param name Name of stream
+   * @param scope  Scope
+   * @param name   Name of stream
    * @param stream Broadcast stream to register
    * @return true if register successfully.
    */
@@ -98,7 +101,7 @@ public interface IProviderService extends IScopeService {
    * Unregister a broadcast stream of a specific name from a scope.
    *
    * @param scope Scope
-   * @param name Stream name
+   * @param name  Stream name
    * @return true if unregister successfully.
    */
   boolean unregisterBroadcastStream(IScope scope, String name);
@@ -106,8 +109,8 @@ public interface IProviderService extends IScopeService {
   /**
    * Unregister a broadcast stream of a specific name from a scope.
    *
-   * @param scope Scope
-   * @param name Stream name
+   * @param scope  Scope
+   * @param name   Stream name
    * @param stream Broadcast stream
    * @return true if unregister successfully.
    */
