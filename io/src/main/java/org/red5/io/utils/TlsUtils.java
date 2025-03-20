@@ -662,11 +662,11 @@ public class TlsUtils {
     }
 
     public static boolean hasExpectedEmptyExtensionData(Hashtable extensions, Integer extensionType, short alertDescription) throws IOException {
-        byte[] extension_data = getExtensionData(extensions, extensionType);
-        if (extension_data == null) {
+        byte[] extensionData = getExtensionData(extensions, extensionType);
+        if (extensionData == null) {
             return false;
         }
-        if (extension_data.length != 0) {
+        if (extensionData.length != 0) {
             throw new IOException("" + alertDescription);
         }
         return true;

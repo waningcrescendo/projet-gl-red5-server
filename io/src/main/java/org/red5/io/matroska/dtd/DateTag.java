@@ -60,10 +60,10 @@ public class DateTag extends UnsignedIntegerTag {
      */
     @Override
     public void parse(InputStream inputStream) throws IOException {
-        long _val = ParserUtils.parseInteger(inputStream, (int) getSize());
-        long val = _val / NANO_MULTIPLIER + DELAY;
-        super.setValue(_val);
-        value = new Date(val);
+        long rawValue = ParserUtils.parseInteger(inputStream, (int) getSize());
+        long adjustedValue = rawValue / NANO_MULTIPLIER + DELAY;
+        super.setValue(rawValue);
+        value = new Date(adjustedValue);
     }
 
     /**
