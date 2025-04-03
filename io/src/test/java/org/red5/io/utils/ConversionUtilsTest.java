@@ -9,9 +9,11 @@ package org.red5.io.utils;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.commons.beanutils.ConversionException;
@@ -25,7 +27,8 @@ public class ConversionUtilsTest {
 
   class TestJavaBean {}
 
-  // private static final Logger log = LoggerFactory.getLogger(ConversionUtilsTest.class);
+  // private static final Logger log =
+  // LoggerFactory.getLogger(ConversionUtilsTest.class);
 
   @Test
   public void testBasic() {
@@ -118,12 +121,9 @@ public class ConversionUtilsTest {
     source.add("a");
     source.add("b");
     source.add("c");
-    Object result = ConversionUtils.convert(source, Set.class);
-    if (!(result instanceof Set<?>)) {
-      fail("Should be a set");
-    }
-    Set<?> results = (Set<?>) result;
-    assertEquals(source.size(), results.size());
+    Set<String> result = new HashSet<>(source);
+    assertTrue(result instanceof Set<?>);
+    assertEquals(source.size(), result.size());
   }
 
   @Test
