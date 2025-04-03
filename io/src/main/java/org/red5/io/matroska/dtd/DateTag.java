@@ -8,15 +8,14 @@ import org.red5.io.matroska.ParserUtils;
 import org.red5.io.matroska.VINT;
 
 /**
- * http://matroska.org/technical/specs/index.html Date - signed 8 octets integer
- * in nanoseconds with
- * 0 indicating the precise beginning of the millennium (at
- * 2001-01-01T00:00:00,000000000 UTC)
+ * http://matroska.org/technical/specs/index.html Date - signed 8 octets integer in nanoseconds with
+ * 0 indicating the precise beginning of the millennium (at 2001-01-01T00:00:00,000000000 UTC)
  */
 public class DateTag extends UnsignedIntegerTag {
   public static final long NANO_MULTIPLIER = 1000;
 
-  public static final long DELAY = 978285600000L; // beginning of the millennium (at 2001-01-01T00:00:00,000000000 UTC)
+  public static final long DELAY =
+      978285600000L; // beginning of the millennium (at 2001-01-01T00:00:00,000000000 UTC)
 
   private Date value;
 
@@ -25,7 +24,7 @@ public class DateTag extends UnsignedIntegerTag {
    *
    * @see Tag#Tag(String, VINT)
    * @param name - the name of tag to be created
-   * @param id   - the id of tag to be created
+   * @param id - the id of tag to be created
    * @throws IOException - in case of IO error
    */
   public DateTag(String name, VINT id) throws IOException {
@@ -36,9 +35,9 @@ public class DateTag extends UnsignedIntegerTag {
    * Constructor
    *
    * @see Tag#Tag(String, VINT, VINT, InputStream)
-   * @param name        - the name of tag to be created
-   * @param id          - the id of tag to be created
-   * @param size        - the size of tag to be created
+   * @param name - the name of tag to be created
+   * @param id - the id of tag to be created
+   * @param size - the size of tag to be created
    * @param inputStream - stream to read tag data from
    * @throws IOException - in case of IO error
    */

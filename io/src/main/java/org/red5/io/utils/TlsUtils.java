@@ -16,7 +16,7 @@ import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.util.io.Streams;
 
 /** Some helper functions for the TLS API. */
-@SuppressWarnings({ "rawtypes", "unchecked" })
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class TlsUtils {
 
   @SuppressWarnings("unused")
@@ -625,8 +625,7 @@ public class TlsUtils {
   }
 
   /**
-   * @deprecated Will be removed. Use readASN1Object in combination with
-   *             requireDEREncoding instead
+   * @deprecated Will be removed. Use readASN1Object in combination with requireDEREncoding instead
    */
   public static ASN1Primitive readDERObject(byte[] encoding) throws IOException {
     /*
