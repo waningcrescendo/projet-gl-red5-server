@@ -75,12 +75,13 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
   protected static int MAX_PACKET_SIZE = 3145728; // 3MB
 
   /** Constructs a new RTMPProtocolDecoder. */
-  public RTMPProtocolDecoder() {}
+  public RTMPProtocolDecoder() {
+  }
 
   /**
    * Decode all available objects in buffer.
    *
-   * @param conn RTMP connection
+   * @param conn   RTMP connection
    * @param buffer IoBuffer of data to be decoded
    * @return a list of decoded objects, may be empty if nothing could be decoded
    */
@@ -145,11 +146,13 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
   /**
    * Decodes the buffer data.
    *
-   * @param conn RTMP connection
-   * @param state Stores state for the protocol, ProtocolState is just a marker interface
-   * @param in IoBuffer of data to be decoded
+   * @param conn  RTMP connection
+   * @param state Stores state for the protocol, ProtocolState is just a marker
+   *              interface
+   * @param in    IoBuffer of data to be decoded
    * @return one of three possible values:
-   *     <pre>
+   * 
+   *         <pre>
    * 1. null : the object could not be decoded, or some data was skipped, just continue
    * 2. ProtocolState : the decoder was unable to decode the whole object, refer to the protocol state
    * 3. Object : something was decoded, continue
@@ -184,9 +187,9 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
   /**
    * Decodes an IoBuffer into a Packet.
    *
-   * @param conn Connection
+   * @param conn  Connection
    * @param state RTMP protocol state
-   * @param in IoBuffer
+   * @param in    IoBuffer
    * @return Packet
    */
   public Packet decodePacket(RTMPConnection conn, RTMPDecodeState state, IoBuffer in) {
@@ -304,11 +307,12 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
   /**
    * Decodes packet header.
    *
-   * @param chh chunk header
-   * @param state RTMP decode state
-   * @param in Input IoBuffer
-   * @param rtmp RTMP object to get last header
-   * @param startPostion Start position of the header in the input buffer from decodePacket
+   * @param chh          chunk header
+   * @param state        RTMP decode state
+   * @param in           Input IoBuffer
+   * @param rtmp         RTMP object to get last header
+   * @param startPostion Start position of the header in the input buffer from
+   *                     decodePacket
    * @return Decoded header
    */
   public Header decodeHeader(
@@ -335,10 +339,9 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
     }
     // got a non-new header for a channel which has no last-read header
     if (headerSize != HEADER_NEW && lastHeader == null) {
-      String detail =
-          String.format(
-              "Last header null: %s, channelId %s",
-              Header.HeaderType.values()[headerSize], channelId);
+      String detail = String.format(
+          "Last header null: %s, channelId %s",
+          Header.HeaderType.values()[headerSize], channelId);
       log.debug("{}", detail);
       // if the op prefers to exit or kill the connection, we should allow based on
       // configuration
@@ -470,9 +473,9 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
   /**
    * Decodes RTMP message event.
    *
-   * @param conn RTMP connection
+   * @param conn   RTMP connection
    * @param header RTMP header
-   * @param in Input IoBuffer
+   * @param in     Input IoBuffer
    * @return RTMP event
    */
   public IRTMPEvent decodeMessage(RTMPConnection conn, Header header, IoBuffer in) {
@@ -860,8 +863,7 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
     }
     final int dotIndex = action.lastIndexOf('.');
     String serviceName = (dotIndex == -1) ? null : action.substring(0, dotIndex);
-    String serviceMethod =
-        (dotIndex == -1) ? action : action.substring(dotIndex + 1, action.length());
+    String serviceMethod = (dotIndex == -1) ? action : action.substring(dotIndex + 1, action.length());
     log.debug("Service name: {} method: {}", serviceName, serviceMethod);
     PendingCall call = new PendingCall(serviceName, serviceMethod, params);
     msg.setCall(call);
@@ -881,7 +883,8 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
   }
 
   /**
-   * Sets whether or not a header error on any channel should result in a closed connection.
+   * Sets whether or not a header error on any channel should result in a closed
+   * connection.
    *
    * @param closeOnHeaderError true to close on header decode errors
    */
@@ -892,8 +895,8 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
   /**
    * Perform the actual decoding of the shared object contents.
    *
-   * @param so Shared object message
-   * @param in input buffer
+   * @param so    Shared object message
+   * @param in    input buffer
    * @param input Input object to be processed
    */
   protected void doDecodeSharedObject(SharedObjectMessage so, IoBuffer in, Input input) {
@@ -975,8 +978,8 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
    * Decode the 'action' for a supplied an Invoke.
    *
    * @param encoding AMF encoding
-   * @param in buffer
-   * @param header data header
+   * @param in       buffer
+   * @param header   data header
    * @return notify
    */
   private Invoke decodeAction(Encoding encoding, IoBuffer in, Header header) {
@@ -1016,8 +1019,7 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
     if (serviceName != null && (serviceName.startsWith("@") || serviceName.startsWith("|"))) {
       serviceName = serviceName.substring(1);
     }
-    String serviceMethod =
-        (dotIndex == -1) ? action : action.substring(dotIndex + 1, action.length());
+    String serviceMethod = (dotIndex == -1) ? action : action.substring(dotIndex + 1, action.length());
     // pull off the prefixes since java doesnt allow this on a method name
     if (serviceMethod.startsWith("@") || serviceMethod.startsWith("|")) {
       serviceMethod = serviceMethod.substring(1);
@@ -1062,7 +1064,8 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
   }
 
   /**
-   * Sets incoming connection parameters and / or returns encoded parameters for use in a call.
+   * Sets incoming connection parameters and / or returns encoded parameters for
+   * use in a call.
    *
    * @param in
    * @param notify
@@ -1118,26 +1121,39 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
   }
 
   /**
-   * Processes a decoded message, updating the RTMP state and the packet accordingly.
+   * Processes a decoded message, updating the RTMP state and the packet
+   * accordingly.
    *
-   * @param rtmp The RTMP state
-   * @param packet The packet that will contain the decoded message
+   * @param rtmp    The RTMP state
+   * @param packet  The packet that will contain the decoded message
    * @param message The decoded message
    */
   private void processDecodedMessage(RTMP rtmp, Packet packet, IRTMPEvent message) {
+    // timebase + timedelta
     final int timestamp = packet.getHeader().getTimer();
+    // store the last ts in thread local for debugging
+    // lastTimestamp.set(header.getTimerBase());
+
     message.setTimestamp(timestamp);
 
     if (message instanceof ChunkSize) {
       rtmp.setReadChunkSize(((ChunkSize) message).getSize());
     } else if (message instanceof Abort) {
       log.debug("Abort packet detected");
+      // client is aborting a message, reset the packet because the next chunk will
+      // start a new
+      // packet
       rtmp.setLastReadPacket(((Abort) message).getChannelId(), null);
       packet = null;
     }
+    // collapse the time stamps on the last header after decode is complete
 
     Header lastHeader = rtmp.getLastReadHeader(packet.getHeader().getChannelId());
     lastHeader.setTimerBase(timestamp);
-    log.trace("Last read header after decode: {}", lastHeader);
+    // clear the delta
+    // lastHeader.setTimerDelta(0);
+    if (isTrace) {
+      log.trace("Last read header after decode: {}", lastHeader);
+    }
   }
 }
