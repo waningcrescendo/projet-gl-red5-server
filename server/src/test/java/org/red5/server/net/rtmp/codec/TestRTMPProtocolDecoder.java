@@ -3,6 +3,7 @@ package org.red5.server.net.rtmp.codec;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -29,6 +30,61 @@ import org.slf4j.LoggerFactory;
 public class TestRTMPProtocolDecoder implements IRTMPHandler {
 
   protected Logger log = LoggerFactory.getLogger(TestRTMPProtocolDecoder.class);
+
+  @Test
+  public void testDecodeEmptyBuffer() {
+    log.debug("\ntestDecodeEmptyBuffer");
+    RTMPProtocolDecoder dec = new RTMPProtocolDecoder();
+    List<Object> objs;
+    RTMPConnection conn = new RTMPMinaConnection();
+    conn.getState().setState(RTMP.STATE_CONNECTED);
+    conn.setHandler(this);
+
+    IoBuffer emptyBuffer = IoBuffer.allocate(0);
+    objs = dec.decodeBuffer(conn, emptyBuffer);
+    log.debug("Decoded objects for empty buffer: {}", objs);
+    assertNotNull("Decoded objects should not be null", objs);
+    assertTrue("Decoded objects should be empty", objs.isEmpty());
+  }
+
+  @Test
+  public void testDecodeCorruptedPacket() {
+    log.debug("\ntestDecodeCorruptedPacket");
+    RTMPProtocolDecoder dec = new RTMPProtocolDecoder();
+    List<Object> objs;
+    RTMPConnection conn = new RTMPMinaConnection();
+    conn.getState().setState(RTMP.STATE_CONNECTED);
+    conn.setHandler(this);
+
+    IoBuffer corruptedBuffer = IoBuffer.wrap(IOUtils.hexStringToByteArray("XXYYZZ"));
+    try {
+      objs = dec.decodeBuffer(conn, corruptedBuffer);
+      log.debug("Decoded objects for corrupted buffer: {}", objs);
+      assertNotNull("Decoded objects should not be null", objs);
+    } catch (Exception e) {
+      log.error("Error decoding corrupted packet: ", e);
+    }
+  }
+
+  @Test
+  public void testDecodeMalformedAMFData() {
+    log.debug("\ntestDecodeMalformedAMFData");
+    RTMPProtocolDecoder dec = new RTMPProtocolDecoder();
+    List<Object> objs;
+    RTMPConnection conn = new RTMPMinaConnection();
+    conn.getState().setState(RTMP.STATE_CONNECTED);
+    conn.setHandler(this);
+
+    byte[] malformedAMF = IOUtils.hexStringToByteArray("0c01020304050607");
+    IoBuffer malformedBuffer = IoBuffer.wrap(malformedAMF);
+    try {
+      objs = dec.decodeBuffer(conn, malformedBuffer);
+      log.debug("Decoded objects for malformed AMF: {}", objs);
+      assertNotNull("Decoded objects should not be null", objs);
+    } catch (Exception e) {
+      log.error("Error decoding malformed AMF data: ", e);
+    }
+  }
 
   @Test
   public void testDecodeChannelId() {
@@ -90,35 +146,35 @@ public class TestRTMPProtocolDecoder implements IRTMPHandler {
     log.debug("Objects #0: {}", objs);
   }
 
-  //    @Test
-  //    public void testDecodeBuffer0() {
-  //        log.debug("\ntestDecodeBuffer0");
-  //        RTMPProtocolDecoder dec = new RTMPProtocolDecoder();
-  //        RTMPConnection conn = new RTMPMinaConnection();
-  //        conn.getState().setState(RTMP.STATE_CONNECTED);
-  //        conn.setHandler(this);
-  //        IoBuffer p0 =
+  // @Test
+  // public void testDecodeBuffer0() {
+  // log.debug("\ntestDecodeBuffer0");
+  // RTMPProtocolDecoder dec = new RTMPProtocolDecoder();
+  // RTMPConnection conn = new RTMPMinaConnection();
+  // conn.getState().setState(RTMP.STATE_CONNECTED);
+  // conn.setHandler(this);
+  // IoBuffer p0 =
   // IoBuffer.wrap(IOUtils.hexStringToByteArray("c79f74365db065581bb60c7ea6eb849812a4cea7e0757375c2ed5c6c316c4238aa6803d7dfe52284f00a336d1e01fb92e2e71e83149e104f64a51878b2192606f0efd8a0bf94bd379f62215fdb300fbaea9d2bfce21ebc169f65d6833872af32767f85629be8e8fafcf41e0722905559477ff638fe6d26da6a9c25a18253378b70b9504e9ae25c678bd8b44f4bcb6afc7c056dea914b9b760a08b7995bd376549f917af074e060fe24dd66bd3e9e3b39c3ac255cf1813c0f08c735077152b5eaee97f0ad22ba544ddd2beb36079afb1048860a3123705372446ff456e4a2ab75f05849ad91a519443c72f3c8c5b60266cf16110d3b69b41c8f7f6584c3f5a049756dfd0b0024dc494b049a35883fbb305e00cb8bb79d09462cc70266bddb31e798083ff2ee6a4731fd903a55033b12a482144d2be9797dd14d67b691ec543cda0ad8a10cf03bcee9e67e999ee109726f558fb8e29d56030adaf38d34c5f406ca3c0a050e40ec2ed5ca8d6728b6c78af9f9cc1dea46b98b2edba431116cca00b127d47bb22793356af9eedd2cb2580cb0d6e7bfb8d86297703be9a679bb260e5db5074cf1930175bf605acd2dee7b08957ca0967a6646519d3beae59ae9004df22a932d38fce93f38532e1406239d5bdbd19a63b0041e66da74b90ec231ed7c306bef2eb198acdc34012507a54c57fc61b9da417f4493f432762230e0da13de8d182adba1ad2d8960395ff9e93351db5f4998843c1045c6e83c35f19e406d056f838c48345c08635a537bd09364121953cea315bcbff2183b30404a16e29bce2cbc0711e2d47c87036e4fd89ada65edd7baded0135ff9f2ad6202c015f2e4ca6d818c4dc22072362bc78f0807968c0d8b91651158e5585d325ce1906ac330cc7871a155dec33e35cbd244da2ace33922eec32885656506d56be20e90b5737102051d77d5228b4f39fe041d00cbd7522c2b0680e29c64fabae611ed4ae28d1cecfe65ac68b2d7ac0907879e8d7558336441a251e055d33754abd2f21f4b34efc94ad97a38d4773398aa827488318537bd8d823d34fce6f02a203753dcd96fa67ecfd4af2a56f9b7270d19e04aa270298985c2c4035454d98f758dd8cd7372dc973481943e3b128047c323c09a72f91605efa9546d8eb649f035985632b3d76058113189886755c283d7629cd5c3f5dc4312e1a795b4f834764926fc22dc18012d7c2d30e1e2f60be9d42be4baf22a1839f815a701432448cbc3590902350006517c4692edd50e4f375498684f269cf85034e2d15ea39eb29d92694e80f773a41e48037ae7eb472d98f46fc981a9fc362ec8718603ec65ab656648bfa77b0eb88e8c7a14204614b605d2e35fb921523b3332e6b4e3353ef2ce843382962bab274ca6bf215f7b639faa9e84e815c2ea2afa95cce5dfaadd3a5b760c73a43659a5312cdfdb6a0f5314e86d6c3212a5c20357cfe5a42f6708f0d55b087c6b0324e385efcef96987b89d39d4773e44e632380208f6c8e9e74a04b2a98dd4981126e42c9e9af1ab4c3f838942dee867d5765f880bd450d665e0576d1f0fb9272d5f0184070f0732a8180e2467baab43ac5873fe141b4986463debaacebb15e1a3c73173c29e192de3c9cfd6511f49c771c37b8fa728812ed82b9fb88058569646273a81b1c302984e4dad17a07726a07f8485170c81f6946da7c7b6ed8d840d5461dd7f1655320f277ed083419ef937c3786db817aa7099be06d900de4a666e0b7f0fd40545e4746bc9e8b0496ef29832cd82b7da3b1c4cbcadfccf10a7d567b468dc25b20befcd7bf59ee43b94bf867bbbee1272bbc2c75470d1d45afddd81ace04117da0a230e1c4c4aabdffe5cc17ff3086c73b52a1a68ad47219a270a98dc9cba430ca2bca09197cf23314c24872e65c8552836fe9472d087d015161fd25b2401564a63d476d36776b170d39b1c2f65f77358228933111d0158a680fd9073e06813b3880121dd8938c0112cd491422a72bf0eae1f0717cb1b10d52ac2d034efd22ab305fa090136647cf5b6c7c55d16d9b29a7d48b701a76586305cd95bd402e96944c4094eb2963fc8b586f873057979df590262a725d6881c167bce59c944bbe9868dfb8aebea1850e2c3e7bada7a8f5d5339f1368bbb92ca9196f4f4026330f2e030000010001321400000000020007636f6e6e656374003ff00000000000000300036170700200086f666c6144656d6f0008666c61736856657202000e4c4e582032312c302c302c313832000673776655726c020029687474703a2f2f6c6f63616c686f73743a353038302f64656d6f732f6f666c615f64656d6f2e7377660005746355726c02001972746dc3703a2f2f6c6f63616c686f73742f6f666c6144656d6f0004667061640100000c6361706162696c697469657300406de00000000000000b617564696f436f646563730040abee0000000000000b766964656f436f6465637300406f800000000000000d766964656f46756e6374696f6e003ff000000000000000077061676555c3726c02002a687474703a2f2f6c6f63616c686f73743a353038302f64656d6f732f6f666c615f64656d6f2e68746d6c000009000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"));
-  //        List<Object> objs = dec.decodeBuffer(conn, p0);
-  //        log.debug("Objects #0: {}", objs);
-  //    }
+  // List<Object> objs = dec.decodeBuffer(conn, p0);
+  // log.debug("Objects #0: {}", objs);
+  // }
 
-  //    @Test
-  //    public void testDecodeBufferExTS() {
-  //        log.debug("\testDecodeBufferExTS");
-  //        RTMPProtocolDecoder dec = new RTMPProtocolDecoder();
-  //        RTMPConnection conn = new RTMPMinaConnection();
-  //        conn.getState().setState(RTMP.STATE_CONNECTED);
-  //        conn.setHandler(this);
-  //        IoBuffer p00 = IoBuffer
-  //                .wrap(IOUtils
+  // @Test
+  // public void testDecodeBufferExTS() {
+  // log.debug("\testDecodeBufferExTS");
+  // RTMPProtocolDecoder dec = new RTMPProtocolDecoder();
+  // RTMPConnection conn = new RTMPMinaConnection();
+  // conn.getState().setState(RTMP.STATE_CONNECTED);
+  // conn.setHandler(this);
+  // IoBuffer p00 = IoBuffer
+  // .wrap(IOUtils
   //
   // .hexStringToByteArray("83a11c7aced9c2762fd1daaeb60659adc1d50536db14df5b67047d7c8ce5f6c688cd672ecfedb6455bb046fb5d2fe318193d6e7875e8a4479e53f654f5b93ca3c3df26e0ef6287be154dbffe64f5c53e2fdf7a5dce37e55c6d4ee7eb7f7c37874cdd926ef55e7f83a51f1db39823778aeffcf826ecfab56a2b173fe6d4f3a066497bdcc9ef6573d7b5bf0f044d9d8d58d01acaa74740a251fc03fb6e866fd277c628f447ee736b7bf5f3f9e8afde80a78afb0327c99fbf6bfcc52a13b59c539c6b18bbb22b0c9efaa768295be4a06877bef7e08f31afece0f68ea9e7ab28f22defe81c5423817e48aa34230ed55b241ed38e6befa4b783b57d4d62bcd96d5407154f7945954cf1c6e5007347ad2fec50d0e958f171d7544be8d8346fcfb2d1eb63c6b980a81d462f3d26cdcb7288dc9e0683f7fffbacfd47fb7237dff0451d29ce28ffe88d761c7c8e3515688bce32a2efb57037e03b47797dc3b138a2d536a82fe5c9ddad4a3d1de8307faae658ad488f8016fb6e2bdb3ff559b47b6e0ef5b52225fa811e4699bc7bacd8d35fbdf2b037b37dbce49c11a08dca5d2834306eea7477c69ed92dd6fca6dad6e5bfd03b783d83cb32f0025d87718e8efb0ba5933be9e51bec673fb356aabc7df05cf81c9fdfde73477823f13fc7aca8f88faa6034204f2a3477133607f64feefad536f59ff94e5d1ea89f7bc49bfddbe98de6dbc9228dbbb0bb2abc9b737dbc0ce276e78783a918ec97ca7ca7a06c0e73df63229df7e1e8c666875e518bd914e0f2fbfcec99f974441dfa6c0ca0f33f3ed88c3acfdacb1ac8ea8ed4d6bf9a0d081be0f806fdb3f9a0519807eb623fbfb3adb78abce8b1d4c96cb249fdb79b732e76a89e1d767208be060414f453783d517d544614ec6e7bf14ef9ab7a22a8559f8f83ffac53fe7f954fb37f8af6a7cf73782349b0453efca9c6bde35014b36cf01492fd9f5fcd51601ad2ef1e768bd515476dcddf5687606e4d052def255190337bc635fb1a1e0ef35baa876a93ffbf6bf7f6fa5111ef0072e455ff88b67bd714ccd1d628fa96847680ee78f3b8303f9074dd512ff22d6282fbf8d37966ee28ff7f2bddec54a307958c61081a034d5b7f937ac1739f7c3ab077c68d7a33dcf7ff28f3bcd4d2794fae6b9cbf957ff84699fd6e772eb547d88955901a1fe7bf0ebbfc1df754ce6a7503b5154a8f35be55d9c5019c76b2c6b6aa7444b7fccf70b95c5171b52a3fe068409eadbbe9fbbff3623cecef7ead179bfcfa9efe7d4005c2a851b67bd57f88f3aa64b27d5e56ff15a94c3a36ffff7357d51444c6f7aa949140f3d075cf67577457ea9e6e411744754a32d83a5f6eccf496e72eb9f0794bafe5db6818f5ccb33547246dbee58afb3543dde2bf67b9371478752abcc52235111b54bdb2f67c1a1fe8467707bdbf9f55dfe679473d146286f07937beb2e57c148ae29bf9446a97ff6f9f1dccf2a9739edf8e8448e89d672cb2ea911bc62e0f2a9ee4bd96ff7688c06033ff1d6628c98ab40f28d1d66f47aa628acff7c3a96eb9f0adeb6a66ca3a83dff2daa95d644693545f7b7d2c2f963e0755714f688de6ad1e2b6bf9bc1d5b5ab9cbcaf8e9b3e3dfddfcffda6a2afedad0191d8f256e8f32e69fff6725538084d6f5436cfd5e7b96a81df59c7c529523ab9fd03b25c6f676cfffb55e4b393d9b83b51b71cf2a3cd67762ca4763a51ee7c79df5fb7ffc1ddb54d3ef8a99ff7846bb3b2c1dffde53b76db07b077f060bf26ff2586e52dfe7fdcf656874dcad0eadca3df4f2c3c8aa29d9e3f0bbf6b0758a1bb98c976ff3ca7d2563d608e48fb6dd965df6da3b97b5992d6bbe039e9555f7e6f780d03e44c6e56c0cf9bf351560eee2bbd53cbd935473f5b7bf601cf499becb68efcc65fadeb554db5b9940e4aa4fbddd57fbbdc63c3d93ca322b53db72aac6a35045967fe19bd7d4ab67d79dbede5d54a20f3ed7b7dc8b0f55ceef9ffff83a9a0753cc54dfafe4d93154b144bbbeb1476287bea8e4f5647b547b67eecc03bcb77681bdffafc6bbd87a0dbe830cfc3a054d85d544f2aa068445101469c32699fe497ea00e888b6caa3f9c67d3797d3fe1114d0cdf035a823df08fe50a7c2328f798ec500c1822858453f17ef5b477b62b557b7f73fedec968ee7a01cbb7bcb315a987df6cd9777fdbc9bcec03806f2cfde41d7e0ed4d9e69ef7b9367fd7fffb514c6bcc403977c6045b659c955b6f7e53e8073d045a23fe8f2fa34ac79d11e55981d49628748f9b914fadb3ca16edfef72cd9ac88a3aec97cf7c1ab96e6c8d6019a220ff8aad633047b714f2c9e73cb159993f7c3a03b3f54df889de5f0f5bf411a5bf95cf3fe2aaa445d83c03114c6446bd1e67273ea7df57f1dbde54656a747bfd6681d9cc983c6ab2c11727aa95773c014eca14c537ca36d117de1de597264edb27b3f65967bb2ed7bd37ca3d51eaddfc8ba857ef67be3af8897930457be5a331529cb72fff414f8a5541d362329ed4ea4cc47e4effcd01aade799faa99df2a8a94ef1bbec955f4329211bb3deb9bfbdb7f328ec0ecaa776a853c63df5329f8cc61af7656077e9c6df08f52aea477eaae7432896e97d553b7e3ac6297f25537760e84503d9abd9032ffd993478cc1ee5537b8dcb14f2d8a7b5b68dbe0e8ee35dc98dd113fe51ec95a654ddb25adf432829fa2381bfc92d9eaafb8a7fb6c1e66cb54715cb2e32e76cc51fd1d2b6f2cc9fef94c2ab8068461d8e8f40e6fa7ac6a7f00e28536cbf96fec6e4e81dc83ae5dd54a4f3f41e819fe7bf22d67a2e237edcc1eada2301cf0043ddbbf8aa281ddf29aaab3dc1e588673caf7ccc3af7be5cbeb479f513f1437ac5a061472c97924efed38df27bdde668eae631936d5167142ba06bc3b0337df7b8d503ada230efd66313a084c7727ece81dabcc0ce05328cf77d3e3b654e2e238f62c6811f60f641d7ef832816b7773fcaa6cf6f380c0bddc6e31768f3fbebfc7415e7e28df97fd4b2cfd7b2658a6f95681cb1475bc73dc3444982365e08d324977f601c9569740eed5219bfd96b7dc9b676aa57f9e0339d56a65b478df65b2e8650fec50a288feaa3393156c6e41e5b36819ffdb1e5b2ab8f82054677fcfcf08d2fd5c60ea2ca6497d44653aa47a7223cd7bf9fdcbe6bd475e640f29d6704750a707423064ffe1df1a6c74a7f68efca6fc0ea96ab5f6bfbb0dbfffaa65926ef047fe5f8e80c8eb727aaa5162ae4ff47419c50ebd445b140eefdbbeddcf624edef475f1e1a7e2e0360c23e034cf10a06018384f834bfac05fe8040ba2667184ccccb0443c6d065ffbef29e768fe5e7281dffbabf208bb064f859add11a7fd6edfd9e57d8af7a3d8a40d8ef04791436ac327afcd5e2a8afea73e0c0c235144900ae7fcab7446e5e866fc0c1020078307f60d34138c0606104b060fe55830bf80d0023a8f201cc1d552afbe9208ded9bc4cd34bba40b8beabfaa6367eecdd051ab51f6ed02b0c60bb67def37ea1897a075b6242e1d5f2ff9f11f1995443af6a37f97dfb8a7ca7bd8ca9fe29c02d397cac0ad00b8c5623fc183fda0c2fb8340f885e651834b0734a68f3f1897f0a0aa489a7a6327e040f81d1195029da640e52bba964a6df0940ee281168f3aa32f6dda3adacff3adccf7402629b6bdad5503ace7b97f9547b971c656f98d5729e99540c1030307f40c301ba08210304f40c1c1aa0616083389941452b57e3e2f2fb9b077efe7b9b9c616e61a73060823cad9b3fb9c954f932d93331a86df13a0680e6f07597f73273ca7d1b5023cf79aeffb80d0423c7e6ceabf5990475ff39364b27996b700f67cd388f818206060ff0bc1858674b7c0d506101cc618585068019fffcf7e363c9ff4490bc1098c62e8154db1ef7ff651f46f7ea2ee08c084aae0ea46b6e26e1a7beccb3be53cf794f2b566eb7bebbe2fdcd52a7bb5eead7b677628924575408d477df8f24117d1b993b7c75d87c0c0c2835606c45c0c0c22b02a2c922fb80759a3fffbbd991a2df4ab6f73af5ffcc03ff9c51ff44dc6c980c33f167b30f3df6f59f2adbbf9de8f6f77dfcffc4792cbd9ebb147a834106f37f37445f7c4798aeb5dc8a87e3a666fc778a07755cd746ab0607f00994034011562508e258355fd30d8eb07515abe6fd803e05c3d66bdbf148f14f41817ba5d36de491b9dc53574079f073ddd2fbfe089e5207af9446f75a1d42f999ccae8c631edc97399e51bd8a5ac9fcd52dd6c7930796f0336456d03080824830bfc01513418188128183fc80c2ff0340f3fe5dd2e55768ed4d496557fe2355e6f4d36ced2f4d30ae777757d5ed62d73e22f846d9fad4fd5023c563b514796ede4bb14f2dea900887aa629823e6aae1728c5593d07792f3930763acec6deaa22780a8f81c6a58656f8304f205418602068015dbdfb2d9a2217a21e73c58396cebe974eaa63825e6671a9ce66f6f6edacee43cf8180a5b07532819f6fbf80a5be63dd55c5767bec53af9a3bdb5559fe4d4a5ff9b4779b7d977ffe29dce39f6830308ac18385f030b0c0d002d2c060613c056034cecfab2e07a17eb596edce60eb8d2d718540c610feabc3dd5753f18eabffbabb4cd6ce80"));
-  //        List<Object> objs = dec.decodeBuffer(conn, p00);
-  //        assertNotNull("Objects should not be null", objs);
-  //        assertFalse("Objects should not be empty", objs.isEmpty());
-  //        log.debug("\testDecodeBufferExTS finished\n");
-  //    }
+  // List<Object> objs = dec.decodeBuffer(conn, p00);
+  // assertNotNull("Objects should not be null", objs);
+  // assertFalse("Objects should not be empty", objs.isEmpty());
+  // log.debug("\testDecodeBufferExTS finished\n");
+  // }
 
   @Test
   public void testDecodeBuffer() {
@@ -182,7 +238,7 @@ public class TestRTMPProtocolDecoder implements IRTMPHandler {
               IOUtils.hexStringToByteArray(
                   "0300017c00002f140000000002002264656d6f536572766963652e6765744c6973744f66417661696c61626"
                       + "c65464c567300400000000000000005"))
-          // packet #3  // 14
+          // packet #3 // 14
           ,
           IoBuffer.wrap(IOUtils.hexStringToByteArray("42000000000006040007ce4c5f73"))
           // packet #4 // 7
@@ -289,18 +345,40 @@ public class TestRTMPProtocolDecoder implements IRTMPHandler {
   }
 
   /*
-   * @Test public void decodeBigPacket() throws Exception { log.debug("\n decodeBigPacket"); RTMPProtocolDecoder dec = new RTMPProtocolDecoder(); RTMPConnection conn = new
-   * RTMPMinaConnection(); conn.getState().setState(RTMP.STATE_CONNECTED); conn.setHandler(this); Channel six = conn.getChannel(6); log.trace("Channel six? {}", six); RTMPDecodeState
-   * state = conn.getDecoderState(); IoBuffer in = IoBuffer.allocate(0); in.setAutoExpand(true); fillBufferFromStringData(in, "bigpacket.dat"); int loops = 0; int packetCount = 0; do
-   * { log.debug("Start buffer - pos: {} limit: {} remaining: {}", in.position(), in.limit(), in.remaining()); Packet pkt = dec.decodePacket(conn, state, in); if (pkt != null) {
-   * log.debug("Decoded: {}", pkt); packetCount++; } log.debug("End buffer - pos: {} limit: {} remaining: {}", in.position(), in.limit(), in.remaining()); } while (in.hasRemaining()
+   * @Test public void decodeBigPacket() throws Exception {
+   * log.debug("\n decodeBigPacket"); RTMPProtocolDecoder dec = new
+   * RTMPProtocolDecoder(); RTMPConnection conn = new
+   * RTMPMinaConnection(); conn.getState().setState(RTMP.STATE_CONNECTED);
+   * conn.setHandler(this); Channel six = conn.getChannel(6);
+   * log.trace("Channel six? {}", six); RTMPDecodeState
+   * state = conn.getDecoderState(); IoBuffer in = IoBuffer.allocate(0);
+   * in.setAutoExpand(true); fillBufferFromStringData(in, "bigpacket.dat"); int
+   * loops = 0; int packetCount = 0; do
+   * { log.debug("Start buffer - pos: {} limit: {} remaining: {}", in.position(),
+   * in.limit(), in.remaining()); Packet pkt = dec.decodePacket(conn, state, in);
+   * if (pkt != null) {
+   * log.debug("Decoded: {}", pkt); packetCount++; }
+   * log.debug("End buffer - pos: {} limit: {} remaining: {}", in.position(),
+   * in.limit(), in.remaining()); } while (in.hasRemaining()
    * && loops++ < 25); log.info("Decoded packet count: {}", packetCount); }
-   * @Test public void decodeBigPacketInPieces() throws Exception { log.debug("\n decodeBigPacketInPieces"); RTMPProtocolDecoder dec = new RTMPProtocolDecoder(); RTMPConnection conn
-   * = new RTMPMinaConnection(); conn.getState().setState(RTMP.STATE_CONNECTED); conn.setHandler(this); Channel six = conn.getChannel(6); log.trace("Channel six? {}", six);
-   * RTMPDecodeState state = conn.getDecoderState(); // tmp storage IoBuffer tmp = IoBuffer.allocate(0); tmp.setAutoExpand(true); fillBufferFromStringData(tmp, "bigpacket.dat");
-   * tmp.mark(); // actual input IoBuffer b0 = IoBuffer.allocate(2); tmp.setAutoExpand(true); b0.put(tmp.get()); b0.flip(); Packet pkt = dec.decodePacket(conn, state, b0);
-   * assertTrue(pkt == null); tmp.reset(); // add the 2 bytes IoBuffer b1 = IoBuffer.allocate(5); b1.put(tmp.get()); b1.put(tmp.get()); b1.put(tmp.get()); b1.put(tmp.get());
-   * b1.put(tmp.get()); b1.flip(); pkt = dec.decodePacket(conn, state, b1); assertTrue(pkt == null); }
+   *
+   * @Test public void decodeBigPacketInPieces() throws Exception {
+   * log.debug("\n decodeBigPacketInPieces"); RTMPProtocolDecoder dec = new
+   * RTMPProtocolDecoder(); RTMPConnection conn
+   * = new RTMPMinaConnection(); conn.getState().setState(RTMP.STATE_CONNECTED);
+   * conn.setHandler(this); Channel six = conn.getChannel(6);
+   * log.trace("Channel six? {}", six);
+   * RTMPDecodeState state = conn.getDecoderState(); // tmp storage IoBuffer tmp =
+   * IoBuffer.allocate(0); tmp.setAutoExpand(true); fillBufferFromStringData(tmp,
+   * "bigpacket.dat");
+   * tmp.mark(); // actual input IoBuffer b0 = IoBuffer.allocate(2);
+   * tmp.setAutoExpand(true); b0.put(tmp.get()); b0.flip(); Packet pkt =
+   * dec.decodePacket(conn, state, b0);
+   * assertTrue(pkt == null); tmp.reset(); // add the 2 bytes IoBuffer b1 =
+   * IoBuffer.allocate(5); b1.put(tmp.get()); b1.put(tmp.get());
+   * b1.put(tmp.get()); b1.put(tmp.get());
+   * b1.put(tmp.get()); b1.flip(); pkt = dec.decodePacket(conn, state, b1);
+   * assertTrue(pkt == null); }
    */
 
   @Test
@@ -311,7 +389,8 @@ public class TestRTMPProtocolDecoder implements IRTMPHandler {
     RTMPConnection conn = new RTMPMinaConnection();
     conn.getState().setState(RTMP.STATE_CONNECTED);
     conn.setHandler(this);
-    // RTMPProtocolDecoder - Failed to decodeBuffer: pos 0, limit 4644, chunk size 1360, buffer
+    // RTMPProtocolDecoder - Failed to decodeBuffer: pos 0, limit 4644, chunk size
+    // 1360, buffer
     IoBuffer p00 =
         IoBuffer.wrap(
             IOUtils.hexStringToByteArray(
@@ -364,18 +443,19 @@ public class TestRTMPProtocolDecoder implements IRTMPHandler {
     writer.writeObject(json);
     writer.buf().flip();
 
-    /* using notify event using a Notify object
-    Header header = new Header();
-    header.setStreamId(1);
-    header.setDataType(Notify.TYPE_STREAM_METADATA);
-    Notify notify = new Notify(writer.buf());
-    notify.setSourceType(Constants.SOURCE_TYPE_LIVE);
-    notify.setTimestamp(0);
-    notify.setAction(action);
-    notify.setHeader(header);
-
-    IoBuffer encoded = enc.encodeStreamMetadata(notify);
-    */
+    /*
+     * using notify event using a Notify object
+     * Header header = new Header();
+     * header.setStreamId(1);
+     * header.setDataType(Notify.TYPE_STREAM_METADATA);
+     * Notify notify = new Notify(writer.buf());
+     * notify.setSourceType(Constants.SOURCE_TYPE_LIVE);
+     * notify.setTimestamp(0);
+     * notify.setAction(action);
+     * notify.setHeader(header);
+     *
+     * IoBuffer encoded = enc.encodeStreamMetadata(notify);
+     */
 
     // IoBuffer encoded = writer.buf();
 
