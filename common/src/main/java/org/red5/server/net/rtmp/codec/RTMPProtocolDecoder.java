@@ -575,26 +575,6 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
     return new Abort(in.getInt());
   }
 
-  /**
-   * Decodes server bandwidth.
-   *
-   * @param in IoBuffer
-   * @return RTMP event
-   */
-  private IRTMPEvent decodeServerBW(IoBuffer in) {
-    return new ServerBW(in.getInt());
-  }
-
-  /**
-   * Decodes client bandwidth.
-   *
-   * @param in Byte buffer
-   * @return RTMP event
-   */
-  private IRTMPEvent decodeClientBW(IoBuffer in) {
-    return new ClientBW(in.getInt(), in.get());
-  }
-
   /** {@inheritDoc} */
   public Unknown decodeUnknown(byte dataType, IoBuffer in) {
     if (isDebug) {
@@ -653,150 +633,6 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
     final SharedObjectMessage so = new SharedObjectMessage(null, name, version, persistent);
     doDecodeSharedObject(so, in, input);
     return so;
-  }
-
-  /**
-   * Perform the actual decoding of the shared object contents.
-   *
-   * @param so Shared object message
-   * @param in input buffer
-   * @param input Input object to be processed
-   */
-  protected void doDecodeSharedObject(SharedObjectMessage so, IoBuffer in, Input input) {
-    // Parse request body
-    Input amf3Input = new org.red5.io.amf3.Input(in);
-    while (in.hasRemaining()) {
-      final ISharedObjectEvent.Type type = SharedObjectTypeMapping.toType(in.get());
-      if (type == null) {
-        in.skip(in.remaining());
-        return;
-      }
-      String key = null;
-      Object value = null;
-      final int length = in.getInt();
-      if (type == ISharedObjectEvent.Type.CLIENT_STATUS) {
-        // Status code
-        key = input.getString();
-        // Status level
-        value = input.getString();
-      } else if (type == ISharedObjectEvent.Type.CLIENT_UPDATE_DATA) {
-        key = null;
-        // Map containing new attribute values
-        final Map<String, Object> map = new HashMap<String, Object>();
-        final int start = in.position();
-        while (in.position() - start < length) {
-          String tmp = input.getString();
-          map.put(tmp, Deserializer.deserialize(input, Object.class));
-        }
-        value = map;
-      } else if (type != ISharedObjectEvent.Type.SERVER_SEND_MESSAGE
-          && type != ISharedObjectEvent.Type.CLIENT_SEND_MESSAGE) {
-        if (length > 0) {
-          key = input.getString();
-          if (length > key.length() + 2) {
-            // determine if the object is encoded with amf3
-            byte objType = in.get();
-            in.position(in.position() - 1);
-            Input propertyInput;
-            if (objType == AMF.TYPE_AMF3_OBJECT && !(input instanceof org.red5.io.amf3.Input)) {
-              // The next parameter is encoded using AMF3
-              propertyInput = amf3Input;
-            } else {
-              // The next parameter is encoded using AMF0
-              propertyInput = input;
-            }
-            value = Deserializer.deserialize(propertyInput, Object.class);
-          }
-        }
-      } else {
-        final int start = in.position();
-        // the "send" event seems to encode the handler name as complete AMF string
-        // including the
-        // string type byte
-        key = Deserializer.deserialize(input, String.class);
-        // read parameters
-        final List<Object> list = new LinkedList<Object>();
-        while (in.position() - start < length) {
-          byte objType = in.get();
-          in.position(in.position() - 1);
-          // determine if the object is encoded with amf3
-          Input propertyInput;
-          if (objType == AMF.TYPE_AMF3_OBJECT && !(input instanceof org.red5.io.amf3.Input)) {
-            // The next parameter is encoded using AMF3
-            propertyInput = amf3Input;
-          } else {
-            // The next parameter is encoded using AMF0
-            propertyInput = input;
-          }
-          Object tmp = Deserializer.deserialize(propertyInput, Object.class);
-          list.add(tmp);
-        }
-        value = list;
-      }
-      so.addEvent(type, key, value);
-    }
-  }
-
-  /**
-   * Decode the 'action' for a supplied an Invoke.
-   *
-   * @param encoding AMF encoding
-   * @param in buffer
-   * @param header data header
-   * @return notify
-   */
-  private Invoke decodeAction(Encoding encoding, IoBuffer in, Header header) {
-    // for response, the action string and invokeId is always encoded as AMF0 we use
-    // the first byte
-    // to decide which encoding to use
-    in.mark();
-    byte tmp = in.get();
-    in.reset();
-    Input input;
-    if (encoding == Encoding.AMF3 && tmp == AMF.TYPE_AMF3_OBJECT) {
-      input = new org.red5.io.amf3.Input(in);
-      ((org.red5.io.amf3.Input) input).enforceAMF3();
-    } else {
-      input = new org.red5.io.amf.Input(in);
-    }
-    // get the action
-    String action = Deserializer.deserialize(input, String.class);
-    if (action == null) {
-      throw new RuntimeException("Action was null");
-    }
-    if (isTrace) {
-      log.trace("Action: {}", action);
-    }
-    // instance the invoke
-    Invoke invoke = new Invoke();
-    // set the transaction id
-    invoke.setTransactionId(readTransactionId(input));
-    // reset and decode parameters
-    input.reset();
-    // get / set the parameters if there any
-    Object[] params = in.hasRemaining() ? handleParameters(in, invoke, input) : new Object[0];
-    // determine service information
-    final int dotIndex = action.lastIndexOf('.');
-    String serviceName = (dotIndex == -1) ? null : action.substring(0, dotIndex);
-    // pull off the prefixes since java doesn't allow this on a method name
-    if (serviceName != null && (serviceName.startsWith("@") || serviceName.startsWith("|"))) {
-      serviceName = serviceName.substring(1);
-    }
-    String serviceMethod =
-        (dotIndex == -1) ? action : action.substring(dotIndex + 1, action.length());
-    // pull off the prefixes since java doesnt allow this on a method name
-    if (serviceMethod.startsWith("@") || serviceMethod.startsWith("|")) {
-      serviceMethod = serviceMethod.substring(1);
-    }
-    // create the pending call for invoke
-    PendingCall call = new PendingCall(serviceName, serviceMethod, params);
-    invoke.setCall(call);
-    return invoke;
-  }
-
-  private int readTransactionId(Input input) {
-    Number transactionId = Deserializer.<Number>deserialize(input, Number.class);
-    return transactionId == null ? 0 : transactionId.intValue();
   }
 
   /**
@@ -1055,12 +891,168 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
   }
 
   /**
+   * Set the maximum allowed packet size. Default is 3 Mb.
+   *
+   * @param maxPacketSize maximum allowed size for a packet
+   */
+  public static void setMaxPacketSize(int maxPacketSize) {
+    MAX_PACKET_SIZE = maxPacketSize;
+    if (isDebug) {
+      log.debug("Max packet size: {}", MAX_PACKET_SIZE);
+    }
+  }
+
+  /**
    * Sets whether or not a header error on any channel should result in a closed connection.
    *
    * @param closeOnHeaderError true to close on header decode errors
    */
   public void setCloseOnHeaderError(boolean closeOnHeaderError) {
     this.closeOnHeaderError = closeOnHeaderError;
+  }
+
+  /**
+   * Perform the actual decoding of the shared object contents.
+   *
+   * @param so Shared object message
+   * @param in input buffer
+   * @param input Input object to be processed
+   */
+  protected void doDecodeSharedObject(SharedObjectMessage so, IoBuffer in, Input input) {
+    // Parse request body
+    Input amf3Input = new org.red5.io.amf3.Input(in);
+    while (in.hasRemaining()) {
+      final ISharedObjectEvent.Type type = SharedObjectTypeMapping.toType(in.get());
+      if (type == null) {
+        in.skip(in.remaining());
+        return;
+      }
+      String key = null;
+      Object value = null;
+      final int length = in.getInt();
+      if (type == ISharedObjectEvent.Type.CLIENT_STATUS) {
+        // Status code
+        key = input.getString();
+        // Status level
+        value = input.getString();
+      } else if (type == ISharedObjectEvent.Type.CLIENT_UPDATE_DATA) {
+        key = null;
+        // Map containing new attribute values
+        final Map<String, Object> map = new HashMap<String, Object>();
+        final int start = in.position();
+        while (in.position() - start < length) {
+          String tmp = input.getString();
+          map.put(tmp, Deserializer.deserialize(input, Object.class));
+        }
+        value = map;
+      } else if (type != ISharedObjectEvent.Type.SERVER_SEND_MESSAGE
+          && type != ISharedObjectEvent.Type.CLIENT_SEND_MESSAGE) {
+        if (length > 0) {
+          key = input.getString();
+          if (length > key.length() + 2) {
+            // determine if the object is encoded with amf3
+            byte objType = in.get();
+            in.position(in.position() - 1);
+            Input propertyInput;
+            if (objType == AMF.TYPE_AMF3_OBJECT && !(input instanceof org.red5.io.amf3.Input)) {
+              // The next parameter is encoded using AMF3
+              propertyInput = amf3Input;
+            } else {
+              // The next parameter is encoded using AMF0
+              propertyInput = input;
+            }
+            value = Deserializer.deserialize(propertyInput, Object.class);
+          }
+        }
+      } else {
+        final int start = in.position();
+        // the "send" event seems to encode the handler name as complete AMF string
+        // including the
+        // string type byte
+        key = Deserializer.deserialize(input, String.class);
+        // read parameters
+        final List<Object> list = new LinkedList<Object>();
+        while (in.position() - start < length) {
+          byte objType = in.get();
+          in.position(in.position() - 1);
+          // determine if the object is encoded with amf3
+          Input propertyInput;
+          if (objType == AMF.TYPE_AMF3_OBJECT && !(input instanceof org.red5.io.amf3.Input)) {
+            // The next parameter is encoded using AMF3
+            propertyInput = amf3Input;
+          } else {
+            // The next parameter is encoded using AMF0
+            propertyInput = input;
+          }
+          Object tmp = Deserializer.deserialize(propertyInput, Object.class);
+          list.add(tmp);
+        }
+        value = list;
+      }
+      so.addEvent(type, key, value);
+    }
+  }
+
+  /**
+   * Decode the 'action' for a supplied an Invoke.
+   *
+   * @param encoding AMF encoding
+   * @param in buffer
+   * @param header data header
+   * @return notify
+   */
+  private Invoke decodeAction(Encoding encoding, IoBuffer in, Header header) {
+    // for response, the action string and invokeId is always encoded as AMF0 we use
+    // the first byte
+    // to decide which encoding to use
+    in.mark();
+    byte tmp = in.get();
+    in.reset();
+    Input input;
+    if (encoding == Encoding.AMF3 && tmp == AMF.TYPE_AMF3_OBJECT) {
+      input = new org.red5.io.amf3.Input(in);
+      ((org.red5.io.amf3.Input) input).enforceAMF3();
+    } else {
+      input = new org.red5.io.amf.Input(in);
+    }
+    // get the action
+    String action = Deserializer.deserialize(input, String.class);
+    if (action == null) {
+      throw new RuntimeException("Action was null");
+    }
+    if (isTrace) {
+      log.trace("Action: {}", action);
+    }
+    // instance the invoke
+    Invoke invoke = new Invoke();
+    // set the transaction id
+    invoke.setTransactionId(readTransactionId(input));
+    // reset and decode parameters
+    input.reset();
+    // get / set the parameters if there any
+    Object[] params = in.hasRemaining() ? handleParameters(in, invoke, input) : new Object[0];
+    // determine service information
+    final int dotIndex = action.lastIndexOf('.');
+    String serviceName = (dotIndex == -1) ? null : action.substring(0, dotIndex);
+    // pull off the prefixes since java doesn't allow this on a method name
+    if (serviceName != null && (serviceName.startsWith("@") || serviceName.startsWith("|"))) {
+      serviceName = serviceName.substring(1);
+    }
+    String serviceMethod =
+        (dotIndex == -1) ? action : action.substring(dotIndex + 1, action.length());
+    // pull off the prefixes since java doesnt allow this on a method name
+    if (serviceMethod.startsWith("@") || serviceMethod.startsWith("|")) {
+      serviceMethod = serviceMethod.substring(1);
+    }
+    // create the pending call for invoke
+    PendingCall call = new PendingCall(serviceName, serviceMethod, params);
+    invoke.setCall(call);
+    return invoke;
+  }
+
+  private int readTransactionId(Input input) {
+    Number transactionId = Deserializer.<Number>deserialize(input, Number.class);
+    return transactionId == null ? 0 : transactionId.intValue();
   }
 
   /**
@@ -1128,14 +1120,22 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
   }
 
   /**
-   * Set the maximum allowed packet size. Default is 3 Mb.
+   * Decodes server bandwidth.
    *
-   * @param maxPacketSize maximum allowed size for a packet
+   * @param in IoBuffer
+   * @return RTMP event
    */
-  public static void setMaxPacketSize(int maxPacketSize) {
-    MAX_PACKET_SIZE = maxPacketSize;
-    if (isDebug) {
-      log.debug("Max packet size: {}", MAX_PACKET_SIZE);
-    }
+  private IRTMPEvent decodeServerBW(IoBuffer in) {
+    return new ServerBW(in.getInt());
+  }
+
+  /**
+   * Decodes client bandwidth.
+   *
+   * @param in Byte buffer
+   * @return RTMP event
+   */
+  private IRTMPEvent decodeClientBW(IoBuffer in) {
+    return new ClientBW(in.getInt(), in.get());
   }
 }
