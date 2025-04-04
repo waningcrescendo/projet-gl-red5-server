@@ -222,6 +222,7 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
       conn.closeChannel(channelId);
       return null;
     }
+
     // store the header based on its channel id
     rtmp.setLastReadHeader(channelId, header);
     // ensure that we dont exceed maximum packet size
@@ -281,42 +282,19 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
     // flip so we can read / decode the packet data into a message
     buf.flip();
     try {
-      // timebase + timedelta
-      final int timestamp = header.getTimer();
-      // store the last ts in thread local for debugging
-      // lastTimestamp.set(header.getTimerBase());
       final IRTMPEvent message = decodeMessage(conn, packet.getHeader(), buf);
+      processDecodedMessage(rtmp, packet, message);
       // flash will send an earlier time stamp when resetting a video stream with a
       // new key frame.
       // To avoid dropping it, we give it the
       // minimal increment since the last message. To avoid relative time stamps being
       // mis-computed,
       // we don't reset the header we stored.
-      message.setTimestamp(timestamp);
       if (isTrace) {
         log.trace("Decoded message: {}", message);
       }
       packet.setMessage(message);
-      if (message instanceof ChunkSize) {
-        ChunkSize chunkSizeMsg = (ChunkSize) message;
-        rtmp.setReadChunkSize(chunkSizeMsg.getSize());
-      } else if (message instanceof Abort) {
-        log.debug("Abort packet detected");
-        // client is aborting a message, reset the packet because the next chunk will
-        // start a new
-        // packet
-        Abort abort = (Abort) message;
-        rtmp.setLastReadPacket(abort.getChannelId(), null);
-        packet = null;
-      }
-      // collapse the time stamps on the last header after decode is complete
-      Header lastHeader = rtmp.getLastReadHeader(channelId);
-      lastHeader.setTimerBase(timestamp);
-      // clear the delta
-      // lastHeader.setTimerDelta(0);
-      if (isTrace) {
-        log.trace("Last read header after decode: {}", lastHeader);
-      }
+
     } finally {
       rtmp.setLastReadPacket(channelId, null);
     }
@@ -1137,5 +1115,29 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
    */
   private IRTMPEvent decodeClientBW(IoBuffer in) {
     return new ClientBW(in.getInt(), in.get());
+  }
+
+  /**
+   * Processes a decoded message, updating the RTMP state and the packet accordingly.
+   *
+   * @param rtmp The RTMP state
+   * @param packet The packet that will contain the decoded message
+   * @param message The decoded message
+   */
+  private void processDecodedMessage(RTMP rtmp, Packet packet, IRTMPEvent message) {
+    final int timestamp = packet.getHeader().getTimer();
+    message.setTimestamp(timestamp);
+
+    if (message instanceof ChunkSize) {
+      rtmp.setReadChunkSize(((ChunkSize) message).getSize());
+    } else if (message instanceof Abort) {
+      log.debug("Abort packet detected");
+      rtmp.setLastReadPacket(((Abort) message).getChannelId(), null);
+      packet = null;
+    }
+
+    Header lastHeader = rtmp.getLastReadHeader(packet.getHeader().getChannelId());
+    lastHeader.setTimerBase(timestamp);
+    log.trace("Last read header after decode: {}", lastHeader);
   }
 }
