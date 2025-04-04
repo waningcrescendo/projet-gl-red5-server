@@ -191,55 +191,27 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
    */
   public Packet decodePacket(RTMPConnection conn, RTMPDecodeState state, IoBuffer in) {
     final int position = in.position();
-    // get RTMP state holder
     RTMP rtmp = conn.getState();
     // read the chunk header (variable from 1-3 bytes)
     final ChunkHeader chunkHeader = ChunkHeader.read(in);
     final Header header = decodeHeader(chunkHeader, state, in, rtmp, position);
     // header is null if we were unable to decode it, we may just need more data
-    if (header == null) {
-      // we were unable to decode the header, return null
-      return null;
-    }
-    // get the channel id
-    final int channelId = header != null ? header.getChannelId() : chunkHeader.getChannelId();
-    // header empty vs header null will return the NS_FAILED message
-    if (header.isEmpty()) {
+    if (header == null || header.isEmpty()) {
       if (isTrace) {
         log.trace("Header was null or empty - chh: {}", chunkHeader);
       }
-      // send a NetStream.Failed message
-      StreamService.sendNetStreamStatus(
-          conn,
-          StatusCodes.NS_FAILED,
-          "Bad data on channel: " + channelId,
-          "no-name",
-          Status.ERROR,
-          conn.getStreamIdForChannelId(channelId));
-      // close the channel on which the issue occurred, until we find a way to exclude
-      // the current
-      // data
-      conn.closeChannel(channelId);
-      return null;
+      return handleInvalidHeader(conn, chunkHeader, header);
     }
+    final int channelId = header != null ? header.getChannelId() : chunkHeader.getChannelId();
 
     // store the header based on its channel id
     rtmp.setLastReadHeader(channelId, header);
     // ensure that we dont exceed maximum packet size
     int size = header.getSize();
     log.debug("Packet size: {}", size);
-    // get the size of our chunks
     int readChunkSize = rtmp.getReadChunkSize();
     // check to see if this is a new packet or continue decoding an existing one
-    Packet packet = rtmp.getLastReadPacket(channelId);
-    if (packet == null) {
-      log.trace("Creating new packet");
-      // create a new packet
-      packet = new Packet(header.clone());
-      // store the packet based on its channel id
-      rtmp.setLastReadPacket(channelId, packet);
-    }
-    // get the packet data
+    Packet packet = getPacketForChannel(rtmp, channelId, header);
     IoBuffer buf = packet.getData();
     if (isTrace) {
       log.trace(
@@ -260,7 +232,6 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
       in.position(position);
       return null;
     }
-    // get the chunk from our input
     readChunk(in, buf, rtmp);
     if (buf.hasRemaining()) {
       if (isTrace) {
@@ -1163,5 +1134,50 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
     in.skip(length);
     buf.put(chunk);
     return chunk;
+  }
+
+  /**
+   * Retrieves the packet for the given channel, creating a new one if necessary.
+   *
+   * @param rtmp The RTMP state
+   * @param channelId The channel ID
+   * @param header The header associated with the packet
+   * @return The packet for the channel
+   */
+  private Packet getPacketForChannel(RTMP rtmp, int channelId, Header header) {
+    Packet packet = rtmp.getLastReadPacket(channelId);
+    if (packet == null) {
+      log.trace("Creating new packet");
+      // create a new packet
+      packet = new Packet(header.clone());
+      // store the packet based on its channel id
+
+      rtmp.setLastReadPacket(channelId, packet);
+    }
+    return packet;
+  }
+
+  /**
+   * Handles invalid headers by logging and sending an error status.
+   *
+   * @param conn The RTMP connection
+   * @param chunkHeader The chunk header that was attempted to be decoded
+   * @param header The decoded header
+   * @return null if the header is invalid
+   */
+  private Packet handleInvalidHeader(RTMPConnection conn, ChunkHeader chunkHeader, Header header) {
+    final int channelId = (header != null) ? header.getChannelId() : chunkHeader.getChannelId();
+    if (header == null || header.isEmpty()) {
+      log.trace("Header was null or empty - chh: {}", chunkHeader);
+      StreamService.sendNetStreamStatus(
+          conn,
+          StatusCodes.NS_FAILED,
+          "Bad data on channel: " + channelId,
+          "no-name",
+          Status.ERROR,
+          conn.getStreamIdForChannelId(channelId));
+      conn.closeChannel(channelId);
+    }
+    return null;
   }
 }
