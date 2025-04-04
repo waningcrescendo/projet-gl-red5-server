@@ -86,14 +86,9 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
    */
   public List<Object> decodeBuffer(RTMPConnection conn, IoBuffer buffer) {
     final int position = buffer.position();
-    // if (isTrace) {
-    //    log.trace("decodeBuffer: {}", Hex.encodeHexString(Arrays.copyOfRange(buffer.array(),
-    // position, buffer.limit())));
-    // }
     // decoded results
     List<Object> result = null;
     if (conn != null) {
-      // log.trace("Decoding for connection - session id: {}", conn.getSessionId());
       try {
         // instance list to hold results
         result = new LinkedList<>();
@@ -108,7 +103,6 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
         int remaining;
         while ((remaining = buffer.remaining()) > 0) {
           if (state.canStartDecoding(remaining)) {
-            // log.trace("Can start decoding");
             state.startDecoding();
           } else {
             log.trace("Cannot start decoding");
@@ -116,12 +110,10 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
           }
           final Object decodedObject = decode(conn, state, buffer);
           if (state.hasDecodedObject()) {
-            // log.trace("Has decoded object");
             if (decodedObject != null) {
               result.add(decodedObject);
             }
           } else if (state.canContinueDecoding()) {
-            // log.trace("Can continue decoding");
             continue;
           } else {
             log.trace("Cannot continue decoding");
@@ -142,10 +134,6 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
         // close connection because we can't parse data from it
         conn.close();
       } finally {
-        // if (isTrace) {
-        //    log.trace("decodeBuffer - post decode input buffer position: {} remaining: {}",
-        // buffer.position(), buffer.remaining());
-        // }
         buffer.compact();
       }
     } else {
@@ -165,15 +153,12 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
    * 1. null : the object could not be decoded, or some data was skipped, just continue
    * 2. ProtocolState : the decoder was unable to decode the whole object, refer to the protocol state
    * 3. Object : something was decoded, continue
-   * </pre>
+   *         </pre>
    *
    * @throws ProtocolException on error
    */
   public Object decode(RTMPConnection conn, RTMPDecodeState state, IoBuffer in)
       throws ProtocolException {
-    // if (isTrace) {
-    // log.trace("Decoding for {}", conn.getSessionId());
-    // }
     try {
       final byte connectionState = conn.getStateCode();
       switch (connectionState) {
@@ -193,10 +178,6 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
       throw pe;
     } catch (RuntimeException e) {
       throw new ProtocolException("Error during decoding", e);
-    } finally {
-      // if (isTrace) {
-      // log.trace("Decoding finished for {}", conn.getSessionId());
-      // }
     }
   }
 
@@ -210,17 +191,6 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
    */
   public Packet decodePacket(RTMPConnection conn, RTMPDecodeState state, IoBuffer in) {
     final int position = in.position();
-    // if (isTrace) {
-    // log.trace("decodePacket - state: {} buffer: {}", state, in);
-    // log.trace("decodePacket: position {}, limit {}, {}", position, in.limit(),
-    // Hex.encodeHexString(Arrays.copyOfRange(in.array(), position, in.limit())));
-    // log.trace("decodePacket: position {}, limit {}", position, in.limit());
-    // int lastTs = lastTimestamp.get() != null ? lastTimestamp.get() : 0;
-    // if (lastTs == 0 || lastTs >= (MEDIUM_INT_MAX - 100)) {
-    // log.trace("decodePacket:{}\n{}", lastTs, Hex.encodeHexString(Arrays.copyOfRange(in.array(),
-    // position, in.limit())));
-    // }
-    // }
     // get RTMP state holder
     RTMP rtmp = conn.getState();
     // read the chunk header (variable from 1-3 bytes)
@@ -246,7 +216,8 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
           "no-name",
           Status.ERROR,
           conn.getStreamIdForChannelId(channelId));
-      // close the channel on which the issue occurred, until we find a way to exclude the current
+      // close the channel on which the issue occurred, until we find a way to exclude
+      // the current
       // data
       conn.closeChannel(channelId);
       return null;
@@ -283,7 +254,8 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
       log.debug("In buffer is too small, buffering ({},{})", in.remaining(), length);
       // how much more data we need to continue?
       state.bufferDecoding(in.position() - position + length);
-      // we need to move back position so header will be available during another decode round
+      // we need to move back position so header will be available during another
+      // decode round
       in.position(position);
       return null;
     }
@@ -314,9 +286,11 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
       // store the last ts in thread local for debugging
       // lastTimestamp.set(header.getTimerBase());
       final IRTMPEvent message = decodeMessage(conn, packet.getHeader(), buf);
-      // flash will send an earlier time stamp when resetting a video stream with a new key frame.
+      // flash will send an earlier time stamp when resetting a video stream with a
+      // new key frame.
       // To avoid dropping it, we give it the
-      // minimal increment since the last message. To avoid relative time stamps being mis-computed,
+      // minimal increment since the last message. To avoid relative time stamps being
+      // mis-computed,
       // we don't reset the header we stored.
       message.setTimestamp(timestamp);
       if (isTrace) {
@@ -328,7 +302,8 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
         rtmp.setReadChunkSize(chunkSizeMsg.getSize());
       } else if (message instanceof Abort) {
         log.debug("Abort packet detected");
-        // client is aborting a message, reset the packet because the next chunk will start a new
+        // client is aborting a message, reset the packet because the next chunk will
+        // start a new
         // packet
         Abort abort = (Abort) message;
         rtmp.setLastReadPacket(abort.getChannelId(), null);
@@ -360,18 +335,15 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
    */
   public Header decodeHeader(
       ChunkHeader chh, RTMPDecodeState state, IoBuffer in, RTMP rtmp, int startPostion) {
-    // if (isTrace) {
-    // log.trace("decodeHeader - chh: {} input: {}", chh,
-    // Hex.encodeHexString(Arrays.copyOfRange(in.array(), in.position(), in.limit())));
-    // log.trace("decodeHeader - chh: {}", chh);
-    // }
     final int channelId = chh.getChannelId();
     // identifies the header type of the four types
     final byte headerSize = chh.getFormat();
-    // represents "packet" header length via "format" only 1 byte in the chunk header is needed here
+    // represents "packet" header length via "format" only 1 byte in the chunk
+    // header is needed here
     int headerLength = RTMPUtils.getHeaderLength(headerSize);
     headerLength += chh.getSize() - 1;
-    // If remaining bytes is less than known headerLength return null and set decoder state.
+    // If remaining bytes is less than known headerLength return null and set
+    // decoder state.
     // This length does not include 4-byte extended timestamp field if present.
     if (in.remaining() < headerLength) {
       state.bufferDecoding(headerLength - in.remaining());
@@ -390,21 +362,21 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
               "Last header null: %s, channelId %s",
               Header.HeaderType.values()[headerSize], channelId);
       log.debug("{}", detail);
-      // if the op prefers to exit or kill the connection, we should allow based on configuration
+      // if the op prefers to exit or kill the connection, we should allow based on
+      // configuration
       // param
       if (closeOnHeaderError) {
-        // this will trigger an error status, which in turn will disconnect the "offending" flash
+        // this will trigger an error status, which in turn will disconnect the
+        // "offending" flash
         // player
         // preventing a memory leak and bringing the whole server to its knees
         throw new ProtocolException(detail);
       } else {
-        // we need to skip the current channel data and continue until a new header is sent
+        // we need to skip the current channel data and continue until a new header is
+        // sent
         return null;
       }
     }
-    //        if (isTrace) {
-    //            log.trace("headerLength: {}", headerLength);
-    //        }
 
     int timeBase = 0, timeDelta = 0;
     Header header = new Header();
@@ -488,7 +460,8 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
         header.setDataType(lastHeader.getDataType());
         header.setStreamId(lastHeader.getStreamId());
         // read the extended timestamp if we have the indication that it exists
-        // This field is present in Type 3 chunks when the most recent Type 0, 1, or 2 chunk for the
+        // This field is present in Type 3 chunks when the most recent Type 0, 1, or 2
+        // chunk for the
         // same chunk stream ID
         // indicated the presence of an extended timestamp field
         if (lastHeader.isExtended()) {
@@ -737,7 +710,8 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
         }
       } else {
         final int start = in.position();
-        // the "send" event seems to encode the handler name as complete AMF string including the
+        // the "send" event seems to encode the handler name as complete AMF string
+        // including the
         // string type byte
         key = Deserializer.deserialize(input, String.class);
         // read parameters
@@ -772,7 +746,8 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
    * @return notify
    */
   private Invoke decodeAction(Encoding encoding, IoBuffer in, Header header) {
-    // for response, the action string and invokeId is always encoded as AMF0 we use the first byte
+    // for response, the action string and invokeId is always encoded as AMF0 we use
+    // the first byte
     // to decide which encoding to use
     in.mark();
     byte tmp = in.get();
@@ -853,9 +828,6 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
         ping = new SWFResponse(bytes);
         break;
       default:
-        // STREAM_BEGIN, STREAM_PLAYBUFFER_CLEAR, STREAM_DRY, RECORDED_STREAM
-        // PING_CLIENT, PONG_SERVER
-        // BUFFER_EMPTY, BUFFER_FULL
         ping = new Ping(type, in.getInt());
         break;
     }
@@ -922,19 +894,19 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
         log.debug("Dataframe params type: {}", object);
         Map<Object, Object> params = Collections.EMPTY_MAP;
         if (object == DataTypes.CORE_MAP) {
-          // the params are sent as a Mixed-Array. Required to support the RTMP publish provided by
+          // the params are sent as a Mixed-Array. Required to support the RTMP publish
+          // provided by
           // ffmpeg
           params = (Map<Object, Object>) input.readMap();
         } else if (object == DataTypes.CORE_ARRAY) {
           params = (Map<Object, Object>) input.readArray(Object[].class);
         } else if (object == DataTypes.CORE_STRING) {
-          // decode the string and drop-in as first map entry since we dont know how its encoded
+          // decode the string and drop-in as first map entry since we dont know how its
+          // encoded
           String str = input.readString();
           log.debug("String params: {}", str);
           params = new HashMap<>();
           params.put("0", str);
-          // } else if (object == DataTypes.CORE_OBJECT) {
-          //    params = (Map<Object, Object>) input.readObject();
         } else {
           try {
             // read the params as a standard object
@@ -965,7 +937,8 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
           object = input.readDataType();
         }
         // onFI
-        // the onFI request contains 2 items relative to the publishing client application
+        // the onFI request contains 2 items relative to the publishing client
+        // application
         // sd = system date (12-07-2011) st = system time (09:11:33.387)
         log.info("Stream send: {}", action);
         Map<Object, Object> params = Collections.EMPTY_MAP;
@@ -995,12 +968,6 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
         } else if (isDebug) {
           log.debug("Stream send did not provide a parameter map");
         }
-        // need to debug this further
-        /*
-         * IoBuffer buf = IoBuffer.allocate(64); buf.setAutoExpand(true); Output out = null; if (encoding == Encoding.AMF3) { out = new org.red5.io.amf3.Output(buf); } else { out = new
-         * Output(buf); } out.writeString(action); out.writeMap(params); buf.flip(); // instance a notify with action ret = new Notify(buf, action);
-         */
-        // go back to the beginning
         in.reset();
         // instance a notify with action
         ret = new Notify(in.asReadOnlyBuffer(), action);
@@ -1027,8 +994,10 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
     // TODO: Unknown byte, probably encoding as with Flex SOs?
     byte flexByte = in.get();
     log.trace("Flex byte: {}", flexByte);
-    // Encoding of message params can be mixed - some params may be in AMF0, others in AMF3,
-    // but according to AMF3 spec, we should collect AMF3 references for the whole message body
+    // Encoding of message params can be mixed - some params may be in AMF0, others
+    // in AMF3,
+    // but according to AMF3 spec, we should collect AMF3 references for the whole
+    // message body
     // (through all params)
     org.red5.io.amf3.Input.RefStorage refStorage = new org.red5.io.amf3.Input.RefStorage();
     Input input = new org.red5.io.amf.Input(in);
@@ -1135,7 +1104,8 @@ public class RTMPProtocolDecoder implements Constants, IEventDecoder {
     List<Object> paramList = new ArrayList<>();
     final Object obj = Deserializer.deserialize(input, Object.class);
     if (obj instanceof Map) {
-      // Before the actual parameters we sometimes (connect) get a map of parameters, this is
+      // Before the actual parameters we sometimes (connect) get a map of parameters,
+      // this is
       // usually null, but if set should be
       // passed to the connection object.
       @SuppressWarnings("unchecked")
