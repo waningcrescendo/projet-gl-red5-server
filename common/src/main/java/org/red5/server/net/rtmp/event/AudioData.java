@@ -7,27 +7,14 @@
 
 package org.red5.server.net.rtmp.event;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
 import org.apache.mina.core.buffer.IoBuffer;
 import org.red5.codec.AudioCodec;
 import org.red5.io.ITag;
-import org.red5.server.api.stream.IStreamPacket;
-import org.red5.server.stream.IStreamData;
 
-public class AudioData extends BaseEvent implements IStreamData<AudioData>, IStreamPacket {
+public class AudioData extends BaseStreamData<AudioData> {
 
   private static final long serialVersionUID = -4102940670913999407L;
-
-  protected IoBuffer data;
-
-  /** Data type */
-  private byte dataType = TYPE_AUDIO_DATA;
 
   /** Audio codec */
   protected AudioCodec codec;
@@ -35,14 +22,17 @@ public class AudioData extends BaseEvent implements IStreamData<AudioData>, IStr
   /** True if this is configuration data and false otherwise */
   protected boolean config;
 
-  /** Constructs a new AudioData. */
+  /** Data type */
+  private byte dataType = TYPE_AUDIO_DATA;
+
+  /** Default constructor */
   public AudioData() {
-    this(IoBuffer.allocate(0).flip());
+    super(IoBuffer.allocate(0).flip());
   }
 
+  /** Constructor with data buffer */
   public AudioData(IoBuffer data) {
-    super(Type.STREAM_DATA);
-    setData(data);
+    super(data);
   }
 
   /**
@@ -52,16 +42,7 @@ public class AudioData extends BaseEvent implements IStreamData<AudioData>, IStr
    * @param copy true to use a copy of the data or false to use reference
    */
   public AudioData(IoBuffer data, boolean copy) {
-    super(Type.STREAM_DATA);
-    if (copy) {
-      byte[] array = new byte[data.remaining()];
-      data.mark();
-      data.get(array);
-      data.reset();
-      setData(array);
-    } else {
-      setData(data);
-    }
+    super(data, copy);
   }
 
   /** {@inheritDoc} */
@@ -70,26 +51,24 @@ public class AudioData extends BaseEvent implements IStreamData<AudioData>, IStr
     return dataType;
   }
 
+  /** Set the data type */
   public void setDataType(byte dataType) {
     this.dataType = dataType;
   }
 
   /** {@inheritDoc} */
-  public IoBuffer getData() {
-    return data;
-  }
-
+  @Override
   public void setData(IoBuffer data) {
+    super.setData(data);
     if (data != null && data.limit() > 0) {
       data.mark();
       codec = AudioCodec.valueOfById(((data.get(0) & 0xff) & ITag.MASK_SOUND_FORMAT) >> 4);
-      // determine by codec whether or not config data is included
+      // Determine by codec whether or not config data is included
       if (AudioCodec.getConfigured().contains(codec)) {
         config = (data.get() == 0);
       }
       data.reset();
     }
-    this.data = data;
   }
 
   public void setData(byte[] data) {
@@ -106,69 +85,11 @@ public class AudioData extends BaseEvent implements IStreamData<AudioData>, IStr
 
   /** {@inheritDoc} */
   @Override
-  protected void releaseInternal() {
-    if (data != null) {
-      data.free();
-      data = null;
-    }
-  }
-
-  @Override
-  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    super.readExternal(in);
-    byte[] byteBuf = (byte[]) in.readObject();
-    if (byteBuf != null) {
-      setData(byteBuf);
-    }
-  }
-
-  @Override
-  public void writeExternal(ObjectOutput out) throws IOException {
-    super.writeExternal(out);
-    if (data != null) {
-      if (data.hasArray()) {
-        out.writeObject(data.array());
-      } else {
-        byte[] array = new byte[data.remaining()];
-        data.mark();
-        data.get(array);
-        data.reset();
-        out.writeObject(array);
-      }
-    } else {
-      out.writeObject(null);
-    }
-  }
-
-  /**
-   * Duplicate this message / event.
-   *
-   * @return duplicated event
-   */
   public AudioData duplicate() throws IOException, ClassNotFoundException {
-    AudioData result = new AudioData();
-    // serialize
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    ObjectOutputStream oos = new ObjectOutputStream(baos);
-    writeExternal(oos);
-    oos.close();
-    // convert to byte array
-    byte[] buf = baos.toByteArray();
-    baos.close();
-    // create input streams
-    ByteArrayInputStream bais = new ByteArrayInputStream(buf);
-    ObjectInputStream ois = new ObjectInputStream(bais);
-    // deserialize
-    result.readExternal(ois);
-    ois.close();
-    bais.close();
-    // clone the header if there is one
-    if (header != null) {
-      result.setHeader(header.clone());
-    }
-    result.setSourceType(sourceType);
-    result.setSource(source);
-    result.setTimestamp(timestamp);
+    AudioData result = super.duplicate();
+    // Copy specific attributes for AudioData if necessary
+    result.codec = this.codec;
+    result.config = this.config;
     return result;
   }
 
@@ -177,5 +98,11 @@ public class AudioData extends BaseEvent implements IStreamData<AudioData>, IStr
   public String toString() {
     return String.format(
         "Audio - ts: %s length: %s", getTimestamp(), (data != null ? data.limit() : '0'));
+  }
+
+  /** Create a new instance of AudioData */
+  @Override
+  protected AudioData createInstance() {
+    return new AudioData();
   }
 }

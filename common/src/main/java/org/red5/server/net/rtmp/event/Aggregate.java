@@ -7,40 +7,25 @@
 
 package org.red5.server.net.rtmp.event;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.util.LinkedList;
 import org.apache.mina.core.buffer.IoBuffer;
-import org.red5.io.IoConstants;
 import org.red5.io.utils.IOUtils;
-import org.red5.server.api.stream.IStreamPacket;
 import org.red5.server.net.rtmp.message.Header;
-import org.red5.server.stream.IStreamData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Aggregate data event */
-public class Aggregate extends BaseEvent
-    implements IoConstants, IStreamData<Aggregate>, IStreamPacket {
+public class Aggregate extends BaseStreamData<Aggregate> {
 
   private static final long serialVersionUID = 5538859593815804830L;
-
   private static Logger log = LoggerFactory.getLogger(Aggregate.class);
 
-  /** Data */
-  protected IoBuffer data;
-
-  /** Data type */
+  /** Data type for aggregate */
   private byte dataType = TYPE_AGGREGATE;
 
   /** Constructs a new Aggregate. */
   public Aggregate() {
-    this(IoBuffer.allocate(0).flip());
+    super();
   }
 
   /**
@@ -49,8 +34,7 @@ public class Aggregate extends BaseEvent
    * @param data data
    */
   public Aggregate(IoBuffer data) {
-    super(Type.STREAM_DATA);
-    setData(data);
+    super(data);
   }
 
   /**
@@ -60,16 +44,13 @@ public class Aggregate extends BaseEvent
    * @param copy true to use a copy of the data or false to use reference
    */
   public Aggregate(IoBuffer data, boolean copy) {
-    super(Type.STREAM_DATA);
-    if (copy) {
-      byte[] array = new byte[data.remaining()];
-      data.mark();
-      data.get(array);
-      data.reset();
-      setData(array);
-    } else {
-      setData(data);
-    }
+    super(data, copy);
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  protected void releaseInternal() {
+    super.releaseInternal();
   }
 
   /** {@inheritDoc} */
@@ -106,6 +87,7 @@ public class Aggregate extends BaseEvent
     LinkedList<IRTMPEvent> parts = new LinkedList<IRTMPEvent>();
     log.trace("Aggregate data length: {}", data.limit());
     int position = data.position();
+
     do {
       try {
         // read the header
@@ -143,9 +125,11 @@ public class Aggregate extends BaseEvent
             parts.add(audio);
             // log.trace("Hex: {}", data.getHexDump());
             // ensure 4 bytes left to read an int
+
             if (data.position() < data.limit() - 4) {
               backPointer = data.getInt();
               // log.trace("Back pointer: {}", backPointer);
+
               if (backPointer != (size + 11)) {
                 log.debug("Data size ({}) and back pointer ({}) did not match", size, backPointer);
               }
@@ -156,12 +140,15 @@ public class Aggregate extends BaseEvent
             video.setTimestamp(timestamp);
             video.setHeader(partHeader);
             log.debug("Video header: {}", video.getHeader());
+
             parts.add(video);
             // log.trace("Hex: {}", data.getHexDump());
             // ensure 4 bytes left to read an int
+
             if (data.position() < data.limit() - 4) {
               backPointer = data.getInt();
               // log.trace("Back pointer: {}", backPointer);
+
               if (backPointer != (size + 11)) {
                 log.debug("Data size ({}) and back pointer ({}) did not match", size, backPointer);
               }
@@ -169,15 +156,18 @@ public class Aggregate extends BaseEvent
             break;
           default:
             log.debug("Non-A/V subtype: {}", subType);
+
             Unknown unk = new Unknown(subType, data.getSlice(size));
             unk.setTimestamp(timestamp);
             unk.setHeader(partHeader);
             parts.add(unk);
             // ensure 4 bytes left to read an int
+
             if (data.position() < data.limit() - 4) {
               backPointer = data.getInt();
             }
         }
+
         position = data.position();
       } catch (Exception e) {
         log.error("Exception decoding aggregate parts", e);
@@ -185,6 +175,7 @@ public class Aggregate extends BaseEvent
       }
       log.trace("Data position: {}", position);
     } while (position < data.limit());
+
     log.trace("Aggregate processing complete, {} parts extracted", parts.size());
     return parts;
   }
@@ -198,36 +189,8 @@ public class Aggregate extends BaseEvent
 
   /** {@inheritDoc} */
   @Override
-  protected void releaseInternal() {
-    if (data != null) {
-      final IoBuffer localData = data;
-      // null out the data first so we don't accidentally
-      // return a valid reference first
-      data = null;
-      localData.clear();
-      localData.free();
-    }
-  }
-
-  @Override
-  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    super.readExternal(in);
-    byte[] byteBuf = (byte[]) in.readObject();
-    if (byteBuf != null) {
-      data = IoBuffer.allocate(byteBuf.length);
-      data.setAutoExpand(true);
-      SerializeUtils.ByteArrayToByteBuffer(byteBuf, data);
-    }
-  }
-
-  @Override
-  public void writeExternal(ObjectOutput out) throws IOException {
-    super.writeExternal(out);
-    if (data != null) {
-      out.writeObject(SerializeUtils.ByteBufferToByteArray(data));
-    } else {
-      out.writeObject(null);
-    }
+  protected Aggregate createInstance() {
+    return new Aggregate();
   }
 
   /**
@@ -236,29 +199,6 @@ public class Aggregate extends BaseEvent
    * @return duplicated event
    */
   public Aggregate duplicate() throws IOException, ClassNotFoundException {
-    Aggregate result = new Aggregate();
-    // serialize
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    ObjectOutputStream oos = new ObjectOutputStream(baos);
-    writeExternal(oos);
-    oos.close();
-    // convert to byte array
-    byte[] buf = baos.toByteArray();
-    baos.close();
-    // create input streams
-    ByteArrayInputStream bais = new ByteArrayInputStream(buf);
-    ObjectInputStream ois = new ObjectInputStream(bais);
-    // deserialize
-    result.readExternal(ois);
-    ois.close();
-    bais.close();
-    // clone the header if there is one
-    if (header != null) {
-      result.setHeader(header.clone());
-    }
-    result.setSourceType(sourceType);
-    result.setSource(source);
-    result.setTimestamp(timestamp);
-    return result;
+    return super.duplicate();
   }
 }
