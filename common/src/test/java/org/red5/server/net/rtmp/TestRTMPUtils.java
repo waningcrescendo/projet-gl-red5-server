@@ -23,11 +23,17 @@ public class TestRTMPUtils {
 
   @Test
   public void testCompareTimestamps() {
-    fail("Not yet implemented");
+    assertEquals(1, RTMPUtils.compareTimestamps(10, 5));
+    assertEquals(-1, RTMPUtils.compareTimestamps(5, 10));
+    assertEquals(0, RTMPUtils.compareTimestamps(7, 7));
   }
 
   @Test
   public void testDiffTimestamps() {
-    fail("Not yet implemented");
+    int a = 10;
+    int b = 5;
+    long expected = 5L;
+    long result = RTMPUtils.diffTimestamps(a, b);
+    assertEquals(expected, result);
   }
 }
