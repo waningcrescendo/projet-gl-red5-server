@@ -209,13 +209,15 @@ public class RTMPHandler extends BaseRTMPHandler {
     }
     // get the method name
     final String action = call.getServiceMethodName();
-    // If it's a callback for server remote call then pass it over to callbacks handler and return
+    // If it's a callback for server remote call then pass it over to callbacks
+    // handler and return
     if ("_result".equals(action) || "_error".equals(action)) {
       handlePendingCallResult(conn, (Invoke) command);
       return;
     }
     boolean disconnectOnReturn = false;
-    // "connected" here means that there is a scope associated with the connection (post-"connect")
+    // "connected" here means that there is a scope associated with the connection
+    // (post-"connect")
     boolean connected = conn.isConnected();
     if (connected) {
       // If this is not a service call then handle connection...
@@ -224,7 +226,8 @@ public class RTMPHandler extends BaseRTMPHandler {
         if (isDebug) {
           log.debug("Stream action: {}", streamAction.toString());
         }
-        // TODO change this to an application scope parameter and / or change to the listener
+        // TODO change this to an application scope parameter and / or change to the
+        // listener
         // pattern
         if (dispatchStreamActions) {
           // pass the stream action event to the handler
@@ -347,81 +350,68 @@ public class RTMPHandler extends BaseRTMPHandler {
                     conn.ping(new Ping(Ping.STREAM_BEGIN, 0, -1));
                   } else {
                     log.debug("Connect failed");
-                    call.setStatus(Call.STATUS_ACCESS_DENIED);
-                    if (call instanceof IPendingServiceCall) {
-                      IPendingServiceCall pc = (IPendingServiceCall) call;
-                      pc.setResult(getStatus(NC_CONNECT_REJECTED));
-                    }
+                    setCallError(call, Call.STATUS_ACCESS_DENIED, NC_CONNECT_REJECTED, null, null);
                     disconnectOnReturn = true;
                   }
                 } catch (ClientRejectedException rejected) {
                   log.debug("Connect rejected");
-                  call.setStatus(Call.STATUS_ACCESS_DENIED);
+                  setCallError(call, Call.STATUS_ACCESS_DENIED, NC_CONNECT_REJECTED, null, null);
                   if (call instanceof IPendingServiceCall) {
-                    IPendingServiceCall pc = (IPendingServiceCall) call;
-                    StatusObject status = getStatus(NC_CONNECT_REJECTED);
+                    StatusObject status = (StatusObject) ((IPendingServiceCall) call).getResult();
                     Object reason = rejected.getReason();
                     if (reason != null) {
                       status.setApplication(reason);
-                      // should we set description?
                       status.setDescription(reason.toString());
                     }
-                    pc.setResult(status);
                   }
                   disconnectOnReturn = true;
                 }
               } else {
                 // connection to specified scope is not allowed
                 log.debug("Connect to specified scope is not allowed");
-                call.setStatus(Call.STATUS_ACCESS_DENIED);
-                if (call instanceof IPendingServiceCall) {
-                  IPendingServiceCall pc = (IPendingServiceCall) call;
-                  StatusObject status = getStatus(NC_CONNECT_REJECTED);
-                  status.setDescription(String.format("Connection to '%s' denied.", path));
-                  pc.setResult(status);
-                }
+                setCallError(
+                    call,
+                    Call.STATUS_ACCESS_DENIED,
+                    NC_CONNECT_REJECTED,
+                    String.format("Connection to '%s' denied.", path),
+                    null);
                 disconnectOnReturn = true;
               }
             }
           } catch (ScopeNotFoundException err) {
             log.warn("Scope not found", err);
-            call.setStatus(Call.STATUS_SERVICE_NOT_FOUND);
-            if (call instanceof IPendingServiceCall) {
-              StatusObject status = getStatus(NC_CONNECT_REJECTED);
-              status.setDescription(String.format("No scope '%s' on this server.", path));
-              ((IPendingServiceCall) call).setResult(status);
-            }
+            setCallError(
+                call,
+                Call.STATUS_SERVICE_NOT_FOUND,
+                NC_CONNECT_REJECTED,
+                String.format("No scope '%s' on this server.", path),
+                null);
             log.info("Scope {} not found on {}", path, host);
             disconnectOnReturn = true;
           } catch (ScopeShuttingDownException err) {
             log.warn("Scope shutting down", err);
-            call.setStatus(Call.STATUS_APP_SHUTTING_DOWN);
-            if (call instanceof IPendingServiceCall) {
-              StatusObject status = getStatus(NC_CONNECT_APPSHUTDOWN);
-              status.setDescription(
-                  String.format("Application at '%s' is currently shutting down.", path));
-              ((IPendingServiceCall) call).setResult(status);
-            }
+            setCallError(
+                call,
+                Call.STATUS_APP_SHUTTING_DOWN,
+                NC_CONNECT_APPSHUTDOWN,
+                String.format("Application at '%s' is currently shutting down.", path),
+                null);
             log.info("Application at {} currently shutting down on {}", path, host);
             disconnectOnReturn = true;
           }
         } else {
           log.warn("Scope {} not found", path);
-          call.setStatus(Call.STATUS_SERVICE_NOT_FOUND);
-          if (call instanceof IPendingServiceCall) {
-            StatusObject status = getStatus(NC_CONNECT_INVALID_APPLICATION);
-            status.setDescription(String.format("No scope '%s' on this server.", path));
-            ((IPendingServiceCall) call).setResult(status);
-          }
+          setCallError(
+              call,
+              Call.STATUS_SERVICE_NOT_FOUND,
+              NC_CONNECT_INVALID_APPLICATION,
+              String.format("No scope '%s' on this server.", path),
+              null);
           log.info("No application scope found for {} on host {}", path, host);
           disconnectOnReturn = true;
         }
       } catch (RuntimeException e) {
-        call.setStatus(Call.STATUS_GENERAL_EXCEPTION);
-        if (call instanceof IPendingServiceCall) {
-          IPendingServiceCall pc = (IPendingServiceCall) call;
-          pc.setResult(getStatus(NC_CONNECT_FAILED));
-        }
+        setCallError(call, Call.STATUS_GENERAL_EXCEPTION, NC_CONNECT_FAILED, null, null);
         log.error("Error connecting {}", e);
         disconnectOnReturn = true;
       }
@@ -484,8 +474,8 @@ public class RTMPHandler extends BaseRTMPHandler {
         channel.write(reply);
         if (disconnectOnReturn) {
           log.debug("Close connection due to connect handling exception: {}", conn.getSessionId());
-          conn.getIoSession()
-              .closeOnFlush(); // must wait until flush to close as we just wrote asynchronously to
+          conn.getIoSession().closeOnFlush(); // must wait until flush to close as we just wrote
+          // asynchronously to
           // the stream
         }
       }
@@ -639,5 +629,32 @@ public class RTMPHandler extends BaseRTMPHandler {
 
   protected void onBWDone() {
     log.debug("onBWDone");
+  }
+
+  /**
+   * Centralize errors gestion for a service call
+   *
+   * @param call Service call to update
+   * @param callStatus Status ot affect the call (ex: Call.STATUS_ACCESS_DENIED)
+   * @param statusCode The code of the status to use to generate the StatusObject (ex:
+   *     NC_CONNECT_REJECTED)
+   * @param description The description to add in the Statusobject
+   * @param channel Canal on which the status should be sent
+   */
+  private void setCallError(
+      IServiceCall call, byte callStatus, String statusCode, String description, Channel channel) {
+    call.setStatus(callStatus);
+
+    if (call instanceof IPendingServiceCall) {
+      StatusObject status = getStatus(statusCode);
+      if (description != null && !description.isEmpty()) {
+        status.setDescription(description);
+      }
+      ((IPendingServiceCall) call).setResult(status);
+
+      if (channel != null) {
+        channel.sendStatus(status.asStatus());
+      }
+    }
   }
 }
