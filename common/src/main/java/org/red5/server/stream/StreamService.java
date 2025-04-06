@@ -496,7 +496,6 @@ public class StreamService implements IStreamService {
    *
    * @param oldStreamName old
    * @param start start pos
-   * @param transition type of transition
    * @param length length to play
    * @param offset offset
    * @param streamName stream name
@@ -504,7 +503,6 @@ public class StreamService implements IStreamService {
   public void play2(
       String oldStreamName,
       int start,
-      String transition,
       int length,
       double offset,
       String streamName) {
