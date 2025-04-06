@@ -1522,12 +1522,12 @@ public abstract class RTMPHandshake implements IHandshake {
    * @param keyid index of XTEA key
    */
   public void getXteaSignature(byte[] array, int offset, int keyId) {
-    int num_rounds = 32;
+    int numRounds = 32;
     int v0, v1, sum = 0, delta = 0x9E3779B9;
     byte[] k = XTEA_KEYS[keyId];
     v0 = ByteBuffer.wrap(array, offset, 4).getInt();
     v1 = ByteBuffer.wrap(array, offset + 4, 4).getInt();
-    for (int i = 0; i < num_rounds; i++) {
+    for (int i = 0; i < numRounds; i++) {
       v0 += (((v1 << 4) ^ (v1 >> 5)) + v1) ^ (sum + k[sum & 3]);
       sum += delta;
       v1 += (((v0 << 4) ^ (v0 >> 5)) + v0) ^ (sum + k[(sum >> 11) & 3]);
