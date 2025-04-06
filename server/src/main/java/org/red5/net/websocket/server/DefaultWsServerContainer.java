@@ -306,10 +306,10 @@ public class DefaultWsServerContainer extends WsWebSocketContainer implements Se
     This method gets called once a second (this is super class content)
     backgroundProcessCount ++;
     if (backgroundProcessCount >= processPeriod) {
-        backgroundProcessCount = 0;
-        for (WsSession wsSession : sessions.keySet()) {
-            wsSession.checkExpiration();
-        }
+    backgroundProcessCount = 0;
+    for (WsSession wsSession : sessions.keySet()) {
+        wsSession.checkExpiration();
+    }
     }
     */
     super.backgroundProcess();

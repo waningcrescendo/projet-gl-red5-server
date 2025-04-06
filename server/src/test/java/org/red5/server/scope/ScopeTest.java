@@ -106,7 +106,7 @@ public class ScopeTest extends AbstractJUnit4SpringContextTests {
     int workerCount = 3, loops = 100;
     List<Worker> workers = new ArrayList<>();
     for (int s = 0; s < workerCount; s++) {
-        workers.add(new Worker(appScope, loops));
+    workers.add(new Worker(appScope, loops));
     }
     // fires off threads
     long start = System.nanoTime();
@@ -115,7 +115,7 @@ public class ScopeTest extends AbstractJUnit4SpringContextTests {
     List<Future<Integer>> futures = executorService.invokeAll(workers);
     log.info("Runtime: {}ms", TimeUnit.MILLISECONDS.convert(System.nanoTime() - start, TimeUnit.NANOSECONDS));
     workers.forEach(worker -> {
-        log.debug("{}", worker);
+    log.debug("{}", worker);
     });
     log.info("Pass: {} fail: {}", pass.get(), fail.get());
     // walk the scope tree to see what we've got
@@ -123,23 +123,23 @@ public class ScopeTest extends AbstractJUnit4SpringContextTests {
     log.info("First level rooms: {}", roomNames1);
     assertTrue(roomNames1.size() >= (workerCount + 1));
     roomNames1.forEach(name -> {
-        IScope room = appScope.getScope(name);
-        //log.info("First level room: {}", room);
-        assertNotNull(room);
-        // each room is expected to have a minimum of 2 child scopes
-        Set<String> childNames = room.getScopeNames();
-        //log.info("{} child rooms: {}", name, childNames);
-        // except for room0
-        if (!"room0".equals(name)) {
-            assertTrue(childNames.size() >= 2);
-        }
+    IScope room = appScope.getScope(name);
+    //log.info("First level room: {}", room);
+    assertNotNull(room);
+    // each room is expected to have a minimum of 2 child scopes
+    Set<String> childNames = room.getScopeNames();
+    //log.info("{} child rooms: {}", name, childNames);
+    // except for room0
+    if (!"room0".equals(name)) {
+        assertTrue(childNames.size() >= 2);
+    }
     });
     // remove them all except 0
     for (String name : roomNames1) {
-        // except for room0
-        if (!"room0".equals(name)) {
-            appScope.removeChildScope(appScope.getScope(name));
-        }
+    // except for room0
+    if (!"room0".equals(name)) {
+        appScope.removeChildScope(appScope.getScope(name));
+    }
     }
     assertTrue(appScope.getBasicScopeNames(ScopeType.ROOM).size() == 1);
      *
