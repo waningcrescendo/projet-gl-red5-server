@@ -168,7 +168,7 @@ public class RTMPUtils implements Constants {
       case HEADER_CONTINUE:
         return 1;
       default:
-        return -1;
+        throw new IllegalArgumentException("Unknown header size marker value: " + headerSize);
     }
   }
 
